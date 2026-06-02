@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Upload, RotateCw, FlipHorizontal, Sparkles, Download, Save, RefreshCw, Maximize2, ZoomIn, Droplets, Sun, Contrast, Palette } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
   const { token } = useAuth();
   
@@ -60,7 +62,7 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
       setProjectId(projectToLoad._id);
       setProjectName(projectToLoad.name);
       const url = projectToLoad.originalUrl.startsWith('/uploads/') 
-        ? `http://localhost:5000${projectToLoad.originalUrl}` 
+        ? `${API_BASE}${projectToLoad.originalUrl}` 
         : projectToLoad.originalUrl;
       loadImage(url);
       
@@ -453,11 +455,11 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
 
       let response;
       if (projectId) {
-        response = await fetch(`http://localhost:5000/api/photos/${projectId}`, {
+        response = await fetch(`${API_BASE}/api/photos/${projectId}`, {
           method: 'PUT', headers, body: JSON.stringify(payload)
         });
       } else {
-        response = await fetch('http://localhost:5000/api/photos/upload', {
+        response = await fetch(`${API_BASE}/api/photos/upload`, {
           method: 'POST', headers,
           body: JSON.stringify({ name: projectName, photo: base64Image, width, height })
         });

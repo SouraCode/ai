@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import pptxgen from 'pptxgenjs';
 import { Sparkles, Save, Download, ChevronLeft, ChevronRight, Edit3, Plus, Trash, Layout, Hash } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
   const { token } = useAuth();
 
@@ -52,7 +54,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
     setGenerating(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:5000/api/ppt/generate', {
+      const response = await fetch(`${API_BASE}/api/ppt/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -318,7 +320,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
     setSaveStatus('saving');
     
     try {
-      const response = await fetch(`http://localhost:5000/api/ppt/${projectId}`, {
+      const response = await fetch(`${API_BASE}/api/ppt/${projectId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

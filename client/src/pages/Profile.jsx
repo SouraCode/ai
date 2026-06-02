@@ -20,6 +20,8 @@ import {
   Sparkles
 } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export const Profile = ({ setActiveTab, loadProject }) => {
   const { user, token, logout, updateProfile, theme } = useAuth();
 
@@ -81,9 +83,9 @@ export const Profile = ({ setActiveTab, loadProject }) => {
       const headers = { 'Authorization': `Bearer ${token}` };
 
       const [photosRes, pptRes, resumesRes] = await Promise.all([
-        fetch('http://localhost:5000/api/photos', { headers }),
-        fetch('http://localhost:5000/api/ppt', { headers }),
-        fetch('http://localhost:5000/api/resumes', { headers })
+        fetch(`${API_BASE}/api/photos`, { headers }),
+        fetch(`${API_BASE}/api/ppt`, { headers }),
+        fetch(`${API_BASE}/api/resumes`, { headers })
       ]);
 
       if (photosRes.ok) {
@@ -117,7 +119,7 @@ export const Profile = ({ setActiveTab, loadProject }) => {
     if (!confirm('Are you sure you want to permanently delete this project?')) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/${type}/${id}`, {
+      const response = await fetch(`${API_BASE}/api/${type}/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -405,7 +407,7 @@ export const Profile = ({ setActiveTab, loadProject }) => {
                           <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-950 border border-white/5 flex items-center justify-center shrink-0">
                             {p.editedUrl ? (
                               <img
-                                src={p.editedUrl.startsWith('/uploads/') ? `http://localhost:5000${p.editedUrl}` : p.editedUrl}
+                                src={p.editedUrl.startsWith('/uploads/') ? `${API_BASE}${p.editedUrl}` : p.editedUrl}
                                 alt={p.name}
                                 className="w-full h-full object-cover"
                               />

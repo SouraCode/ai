@@ -20,6 +20,8 @@ import {
   Smile 
 } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
   const { token, theme } = useAuth();
 
@@ -416,13 +418,13 @@ export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
 
       let response;
       if (projectId) {
-        response = await fetch(`http://localhost:5000/api/resumes/${projectId}`, {
+        response = await fetch(`${API_BASE}/api/resumes/${projectId}`, {
           method: 'PUT',
           headers,
           body: JSON.stringify(payload)
         });
       } else {
-        response = await fetch('http://localhost:5000/api/resumes', {
+        response = await fetch(`${API_BASE}/api/resumes`, {
           method: 'POST',
           headers,
           body: JSON.stringify(payload)
