@@ -7,7 +7,7 @@ const router = express.Router();
 
 const generateToken = (user) => {
   return jwt.sign(
-    { id: user._id, username: user.username, email: user.email },
+    { id: user._id.toString(), username: user.username, email: user.email },
     process.env.JWT_SECRET || 'super_secret_plant_key',
     { expiresIn: '7d' }
   );
@@ -57,7 +57,7 @@ router.post('/login', async (req, res) => {
   try {
     const user = await UserStore.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(404).json({ message: 'Account not found' });
     }
     
     const isMatch = await UserStore.comparePassword(password, user.password);

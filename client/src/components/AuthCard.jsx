@@ -39,7 +39,15 @@ export const AuthCard = () => {
       // Successful Login/Signup - land on the Dashboard!
       window.location.hash = '#/dashboard';
     } catch (err) {
-      setErrorMessage(err.message || 'Authentication failed. Please verify your connection.');
+      if (err.message === 'Account not found') {
+        setErrorMessage('You do not have an account. Redirecting you to the Sign Up page...');
+        setTimeout(() => {
+          setAuthState('signup');
+          setErrorMessage('');
+        }, 2000);
+      } else {
+        setErrorMessage(err.message || 'Authentication failed. Please verify your connection.');
+      }
     } finally {
       setLoading(false);
     }
