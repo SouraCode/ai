@@ -40,7 +40,7 @@ export const AuthCard = () => {
       window.location.hash = '#/dashboard';
     } catch (err) {
       if (err.message === 'Account not found') {
-        setErrorMessage('You do not have an account. Redirecting you to the Sign Up page...');
+        setErrorMessage('You have not any account, sign up first');
         setTimeout(() => {
           setAuthState('signup');
           setErrorMessage('');
