@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- SEO Optimization -->
+    <title>ALL IN ONE - Premium Photo, AI PPT & Resume MERN Hub</title>
+    <meta name="description" content="A comprehensive full-stack MERN suite featuring canvas photo suites, simulated LLM prompt-to-PPT slideshow engines, and custom split-screen resume developers." />
+    <meta name="keywords" content="MERN Stack, Photo Editor, AI Presentation Generator, Resume Builder, Tailwind CSS, ALL IN ONE Hub, Glassmorphism UI" />
+    <meta name="author" content="ALL IN ONE Team" />
+    <meta name="theme-color" content="#1e3f35" />
+    
+    <!-- PWA Manifest support -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+    
+    <!-- Prefetch Google Font layers -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Register PWA Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('🍃 ALL IN ONE PWA Service Worker Registered!'))
+            .catch(err => console.warn('⚠️ PWA Service Worker registration failed:', err));
+        });
+      }
+    </script>
+  </body>
+</html>
