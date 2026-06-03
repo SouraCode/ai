@@ -52,7 +52,8 @@ export const connectDB = async () => {
     dbConfig.isConnected = false;
     dbConfig.isFallback = true;
     process.env.DB_FALLBACK = 'true';
-    console.warn('⚠️  MongoDB connection failed. Activating local JSON storage fallback!');
+    console.error('⚠️  MongoDB connection failed:', error.message || error);
+    console.warn('⚠️  Activating local JSON storage fallback!');
     
     // Ensure the data fallback folder exists
     const fallbackDir = path.resolve('data_fallback');
