@@ -41,9 +41,13 @@ self.addEventListener('fetch', (event) => {
       if (response) {
         return response; // Serve from cache
       }
-      return fetch(event.request).catch(() => {
-        // Fallback for offline conditions
-        return caches.match('/index.html');
+      return fetch(event.request).catch((err) => {
+        // Fallback for offline conditions - ONLY return index.html for page navigation!
+        if (event.request.mode === 'navigate' || (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html'))) {
+          return caches.match('/index.html');
+        }
+        // Let other assets (js, css, images) fail naturally to prevent SyntaxError: Unexpected token '<' crashes
+        return Promise.reject(err);
       });
     })
   );
