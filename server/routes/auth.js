@@ -16,7 +16,9 @@ const generateToken = (user) => {
 // @route   POST api/auth/register
 // @desc    Register a new user
 router.post('/register', async (req, res) => {
-  const { username, email, password } = req.body;
+  const username = req.body.username ? req.body.username.trim() : '';
+  const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
+  const password = req.body.password;
   
   if (!username || !email || !password) {
     return res.status(400).json({ message: 'All fields are required' });
@@ -48,7 +50,8 @@ router.post('/register', async (req, res) => {
 // @route   POST api/auth/login
 // @desc    Authenticate user & get token
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
+  const password = req.body.password;
   
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required' });
@@ -104,7 +107,9 @@ router.get('/me', authMiddleware, async (req, res) => {
 // @route   PUT api/auth/profile
 // @desc    Update current user profile
 router.put('/profile', authMiddleware, async (req, res) => {
-  const { username, email, password } = req.body;
+  const username = req.body.username ? req.body.username.trim() : undefined;
+  const email = req.body.email ? req.body.email.trim().toLowerCase() : undefined;
+  const password = req.body.password;
   try {
     const user = await UserStore.findById(req.user.id);
     if (!user) {

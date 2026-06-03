@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
+import UserModel from '../models/User.js';
 
 const dbConfig = {
   isConnected: false,
@@ -17,6 +18,36 @@ export const connectDB = async () => {
     });
     dbConfig.isConnected = true;
     console.log('💚 MongoDB connected successfully.');
+    
+    // Run migration to normalize all existing user emails/usernames to lowercase/trimmed
+    try {
+      const users = await UserModel.find({});
+      let updatedCount = 0;
+      for (const user of users) {
+        if (user.email) {
+          const lowerEmail = user.email.trim().toLowerCase();
+          const trimmedUsername = user.username ? user.username.trim() : '';
+          let dirty = false;
+          if (user.email !== lowerEmail) {
+            user.email = lowerEmail;
+            dirty = true;
+          }
+          if (user.username !== trimmedUsername) {
+            user.username = trimmedUsername;
+            dirty = true;
+          }
+          if (dirty) {
+            await user.save();
+            updatedCount++;
+          }
+        }
+      }
+      if (updatedCount > 0) {
+        console.log(`🧹 Database migration: normalized ${updatedCount} user accounts.`);
+      }
+    } catch (migError) {
+      console.error('⚠️ User email migration failed:', migError);
+    }
   } catch (error) {
     dbConfig.isConnected = false;
     dbConfig.isFallback = true;

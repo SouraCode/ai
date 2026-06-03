@@ -70,12 +70,13 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setIsLoading(true);
     setError(null);
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
     
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: cleanEmail, password })
       });
       
       const data = await response.json();
@@ -101,12 +102,14 @@ export const AuthProvider = ({ children }) => {
   const register = async (username, email, password) => {
     setIsLoading(true);
     setError(null);
+    const cleanUsername = username ? username.trim() : '';
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
     
     try {
       const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password })
+        body: JSON.stringify({ username: cleanUsername, email: cleanEmail, password })
       });
       
       const data = await response.json();
@@ -139,6 +142,8 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (username, email, password) => {
     setIsLoading(true);
     setError(null);
+    const cleanUsername = username ? username.trim() : '';
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
     try {
       const response = await fetch(`${API_URL}/auth/profile`, {
         method: 'PUT',
@@ -146,7 +151,7 @@ export const AuthProvider = ({ children }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ username, email, password })
+        body: JSON.stringify({ username: cleanUsername, email: cleanEmail, password })
       });
       
       const data = await response.json();

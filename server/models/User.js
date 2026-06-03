@@ -10,8 +10,14 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Hash password before saving to MongoDB
+// Hash password and normalize email/username before saving to MongoDB
 userSchema.pre('save', async function(next) {
+  if (this.email) {
+    this.email = this.email.trim().toLowerCase();
+  }
+  if (this.username) {
+    this.username = this.username.trim();
+  }
   if (!this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
@@ -31,7 +37,22 @@ const readFallbackUsers = () => {
   const filepath = getFallbackPath();
   if (!fs.existsSync(filepath)) return [];
   try {
-    return JSON.parse(fs.readFileSync(filepath, 'utf8'));
+    const users = JSON.parse(fs.readFileSync(filepath, 'utf8'));
+    let dirty = false;
+    const normalized = users.map(u => {
+      if (u.email) {
+        const lower = u.email.trim().toLowerCase();
+        if (u.email !== lower) {
+          dirty = true;
+          return { ...u, email: lower };
+        }
+      }
+      return u;
+    });
+    if (dirty) {
+      writeFallbackUsers(normalized);
+    }
+    return normalized;
   } catch (e) {
     return [];
   }
@@ -43,11 +64,12 @@ const writeFallbackUsers = (users) => {
 
 export const UserStore = {
   async findOne({ email }) {
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
     if (process.env.DB_FALLBACK === 'true') {
       const users = readFallbackUsers();
-      return users.find(u => u.email === email) || null;
+      return users.find(u => u.email === cleanEmail) || null;
     }
-    return await UserModel.findOne({ email });
+    return await UserModel.findOne({ email: cleanEmail });
   },
 
   async findById(id) {
@@ -59,9 +81,11 @@ export const UserStore = {
   },
 
   async create({ username, email, password }) {
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const cleanUsername = username ? username.trim() : '';
     if (process.env.DB_FALLBACK === 'true') {
       const users = readFallbackUsers();
-      if (users.some(u => u.email === email)) {
+      if (users.some(u => u.email === cleanEmail)) {
         throw new Error('User already exists');
       }
       const salt = await bcrypt.genSalt(10);
@@ -69,8 +93,8 @@ export const UserStore = {
       
       const newUser = {
         _id: 'user_' + Math.random().toString(36).substr(2, 9),
-        username,
-        email,
+        username: cleanUsername,
+        email: cleanEmail,
         password: hashedPassword,
         createdAt: new Date().toISOString()
       };
@@ -80,7 +104,7 @@ export const UserStore = {
       return newUser;
     }
     
-    const user = new UserModel({ username, email, password });
+    const user = new UserModel({ username: cleanUsername, email: cleanEmail, password });
     return await user.save();
   },
 
@@ -89,25 +113,32 @@ export const UserStore = {
   },
 
   async update(id, data) {
+    const updateData = { ...data };
+    if (updateData.username) {
+      updateData.username = updateData.username.trim();
+    }
+    if (updateData.email) {
+      updateData.email = updateData.email.trim().toLowerCase();
+    }
     if (process.env.DB_FALLBACK === 'true') {
       const users = readFallbackUsers();
       const idx = users.findIndex(u => u._id === id);
       if (idx !== -1) {
-        if (data.password) {
+        if (updateData.password) {
           const salt = await bcrypt.genSalt(10);
-          data.password = await bcrypt.hash(data.password, salt);
+          updateData.password = await bcrypt.hash(updateData.password, salt);
         }
-        users[idx] = { ...users[idx], ...data };
+        users[idx] = { ...users[idx], ...updateData };
         writeFallbackUsers(users);
         return users[idx];
       }
       return null;
     }
-    if (data.password) {
+    if (updateData.password) {
       const salt = await bcrypt.genSalt(10);
-      data.password = await bcrypt.hash(data.password, salt);
+      updateData.password = await bcrypt.hash(updateData.password, salt);
     }
-    return await UserModel.findByIdAndUpdate(id, data, { new: true });
+    return await UserModel.findByIdAndUpdate(id, updateData, { new: true });
   }
 };
 

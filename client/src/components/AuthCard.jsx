@@ -31,30 +31,33 @@ export const AuthCard = () => {
     setLoading(true);
     setErrorMessage('');
     
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const cleanUsername = username ? username.trim() : '';
+    
     // Validation
     if (authState === 'login') {
-      if (!email || !password) {
+      if (!cleanEmail || !password) {
         setErrorMessage('Please enter your email and password.');
         setLoading(false);
         return;
       }
-      if (!validateEmail(email)) {
+      if (!validateEmail(cleanEmail)) {
         setErrorMessage('Please enter a valid email address.');
         setLoading(false);
         return;
       }
     } else if (authState === 'signup') {
-      if (!username || !email || !password) {
+      if (!cleanUsername || !cleanEmail || !password) {
         setErrorMessage('Please fill in all details.');
         setLoading(false);
         return;
       }
-      if (username.trim().length < 2) {
+      if (cleanUsername.length < 2) {
         setErrorMessage('Name must be at least 2 characters.');
         setLoading(false);
         return;
       }
-      if (!validateEmail(email)) {
+      if (!validateEmail(cleanEmail)) {
         setErrorMessage('Please enter a valid email address.');
         setLoading(false);
         return;
@@ -68,14 +71,14 @@ export const AuthCard = () => {
 
     try {
       if (authState === 'login') {
-        await login(email, password);
+        await login(cleanEmail, password);
         if (rememberMe) {
-          localStorage.setItem('remember_email', email);
+          localStorage.setItem('remember_email', cleanEmail);
         } else {
           localStorage.removeItem('remember_email');
         }
       } else if (authState === 'signup') {
-        await register(username, email, password);
+        await register(cleanUsername, cleanEmail, password);
       }
       
       // Success screen transition
@@ -86,11 +89,7 @@ export const AuthCard = () => {
       
     } catch (err) {
       if (err.message === 'Account not found') {
-        setErrorMessage('You have not any account, sign up first');
-        setTimeout(() => {
-          setAuthState('signup');
-          setErrorMessage('');
-        }, 2000);
+        setErrorMessage('Account not found. Please double-check your email or click Sign Up below to create an account.');
       } else {
         setErrorMessage(err.message || 'Authentication failed. Please verify your connection.');
       }
@@ -188,6 +187,9 @@ export const AuthCard = () => {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck="false"
                       className="w-full bg-white/5 border border-white/10 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/20 rounded-xl pl-11 pr-4 py-3 text-white placeholder-gray-600 focus:outline-none text-sm transition-all"
                       placeholder="user@mail.com"
                     />

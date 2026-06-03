@@ -22,6 +22,10 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+const validateEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
 export const Profile = ({ setActiveTab, loadProject }) => {
   const { user, token, logout, updateProfile, theme } = useAuth();
 
@@ -141,6 +145,21 @@ export const Profile = ({ setActiveTab, loadProject }) => {
     setSuccessMsg('');
     setErrorMsg('');
 
+    const cleanUsername = username ? username.trim() : '';
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+
+    if (!cleanUsername || !cleanEmail) {
+      setErrorMsg('Name and email are required.');
+      setLoading(false);
+      return;
+    }
+
+    if (!validateEmail(cleanEmail)) {
+      setErrorMsg('Please enter a valid email address.');
+      setLoading(false);
+      return;
+    }
+
     if (password && password !== confirmPassword) {
       setErrorMsg('Passwords do not match.');
       setLoading(false);
@@ -148,7 +167,7 @@ export const Profile = ({ setActiveTab, loadProject }) => {
     }
 
     try {
-      await updateProfile(username, email, password || undefined);
+      await updateProfile(cleanUsername, cleanEmail, password || undefined);
       setSuccessMsg('Your profile has been successfully updated.');
       setPassword('');
       setConfirmPassword('');
@@ -322,6 +341,9 @@ export const Profile = ({ setActiveTab, loadProject }) => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
                     className="w-full pl-10 pr-3 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
                   />
                 </div>
