@@ -9,11 +9,17 @@ const dbConfig = {
 };
 
 export const connectDB = async () => {
-  const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ai-multi-tool';
+  const mongoURI = process.env.MONGODB_URI;
+  if (!mongoURI) {
+    console.error('❌ MONGODB_URI environment variable is missing!');
+    console.error('👉 If deploying to Render, you must add MONGODB_URI to the "Environment" tab in the Render Dashboard.');
+  }
+  
+  const connectionString = mongoURI || 'mongodb://127.0.0.1:27017/ai-multi-tool';
   
   try {
     mongoose.set('strictQuery', false);
-    await mongoose.connect(mongoURI, {
+    await mongoose.connect(connectionString, {
       serverSelectionTimeoutMS: 3000 // Quick timeout to fail fast if DB isn't running
     });
     dbConfig.isConnected = true;
