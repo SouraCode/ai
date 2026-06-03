@@ -50,6 +50,15 @@ export const connectDB = async () => {
     }
   } catch (error) {
     dbConfig.isConnected = false;
+    
+    // In production or Render environments, do not fallback silently to ephemeral storage.
+    // Fail fast to alert the developer about database/IP whitelist configuration issues.
+    if (process.env.RENDER === 'true' || process.env.NODE_ENV === 'production') {
+      console.error('❌ MongoDB connection failed in production/Render environment:', error.message || error);
+      console.error('❌ Crashing server to prevent silent data loss in ephemeral container.');
+      throw error;
+    }
+
     dbConfig.isFallback = true;
     process.env.DB_FALLBACK = 'true';
     console.error('⚠️  MongoDB connection failed:', error.message || error);

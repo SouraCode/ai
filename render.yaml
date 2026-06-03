@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: ai-multi-tool-api
+    env: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PORT
+        value: 5000
+      - key: NODE_ENV
+        value: production
