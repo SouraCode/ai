@@ -24,9 +24,9 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     
-    <!-- Register PWA Service Worker -->
+    <!-- Register PWA Service Worker only for local development to avoid stale production cache issues -->
     <script>
-      if ('serviceWorker' in navigator) {
+      if ('serviceWorker' in navigator && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then(reg => console.log('🍃 ALL IN ONE PWA Service Worker Registered!'))
