@@ -4,7 +4,7 @@ services:
     env: node
     rootDir: server
     buildCommand: npm install
-    startCommand: node server.js
+    startCommand: npm start
     envVars:
       - key: MONGODB_URI
         sync: false
@@ -16,3 +16,17 @@ services:
         value: 5000
       - key: NODE_ENV
         value: production
+
+  - type: web
+    name: ai-multi-tool-client
+    env: static
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://ai-c4e0.onrender.com

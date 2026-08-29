@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { connectDB } from './config/db.js';
 
@@ -46,6 +47,17 @@ app.get('/', (req, res) => {
     dbFallbackMode: process.env.DB_FALLBACK === 'true'
   });
 });
+
+// Serve the built frontend from the client dist folder when available
+const clientDistPath = path.resolve(__dirname, 'client', 'dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+
+  app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
+    const indexPath = path.join(clientDistPath, 'index.html');
+    res.sendFile(indexPath);
+  });
+}
 
 // Global Error Handler
 app.use((err, req, res, next) => {
