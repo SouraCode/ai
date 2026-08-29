@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 import { connectDB } from './config/db.js';
 
 // Route Imports
@@ -30,7 +31,8 @@ app.use(express.json({ limit: '50mb' })); // Support base64 image edits
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve Uploaded Files Statically
-const __dirname = path.resolve();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Mount API Routes
