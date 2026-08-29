@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Upload, RotateCw, FlipHorizontal, Sparkles, Download, Save, RefreshCw, Maximize2, ZoomIn, Droplets, Sun, Contrast, Palette } from 'lucide-react';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_BASE } from '../config/api';
 
 export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
   const { token } = useAuth();

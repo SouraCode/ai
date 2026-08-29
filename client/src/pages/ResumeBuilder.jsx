@@ -19,8 +19,7 @@ import {
   Users, 
   Smile 
 } from 'lucide-react';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_BASE } from '../config/api';
 
 export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
   const { token, theme } = useAuth();

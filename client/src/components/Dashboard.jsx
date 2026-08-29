@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Image, Presentation, FileText, Trash2, Calendar, ArrowRight, Play } from 'lucide-react';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_BASE } from '../config/api';
 
 export const Dashboard = ({ setActiveTab, loadProject }) => {
   const { user, token } = useAuth();
