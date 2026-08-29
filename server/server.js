@@ -39,8 +39,16 @@ app.use('/api/photos', photoRoutes);
 app.use('/api/ppt', pptRoutes);
 app.use('/api/resumes', resumeRoutes);
 
+const projectRoot = path.resolve(__dirname, '..');
+const clientDistPath = path.join(projectRoot, 'client', 'dist');
+const clientIndexPath = path.join(clientDistPath, 'index.html');
+
 // Health Check / Sanity Check Endpoint
 app.get('/', (req, res) => {
+  if (fs.existsSync(clientIndexPath) && req.accepts('html')) {
+    return res.sendFile(clientIndexPath);
+  }
+
   res.json({
     status: 'online',
     message: 'MERN Multi-Tool Application Server API running successfully.',
@@ -49,13 +57,11 @@ app.get('/', (req, res) => {
 });
 
 // Serve the built frontend from the client dist folder when available
-const clientDistPath = path.resolve(__dirname, 'client', 'dist');
 if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath));
 
   app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
-    const indexPath = path.join(clientDistPath, 'index.html');
-    res.sendFile(indexPath);
+    res.sendFile(clientIndexPath);
   });
 }
 
