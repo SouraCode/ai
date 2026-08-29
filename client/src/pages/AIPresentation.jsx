@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Presentation } from "lucide-react";
 import { useAuth } from '../context/AuthContext';
 import pptxgen from 'pptxgenjs';
 import { Sparkles, Save, Download, ChevronLeft, ChevronRight, Edit3, Plus, Trash, Layout, Hash } from 'lucide-react';
@@ -85,7 +86,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
   // Generates rich, structured, business-ready presentation slides
   const getMockSlidesByPrompt = (topic, count = 8) => {
     const topicWords = topic.toLowerCase();
-    
+
     // Determine domain context for smarter content
     const isTech = /tech|software|app|ai|machine|data|cloud|saas|platform|code|develop/.test(topicWords);
     const isMarketing = /market|brand|advertis|social|campaign|grow|seo|content|digital/.test(topicWords);
@@ -93,7 +94,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
     const isHealth = /health|medical|fitness|wellness|hospital|pharma|bio/.test(topicWords);
     const isEducation = /educat|school|university|learn|teach|course|academ|student/.test(topicWords);
     const isFinance = /financ|bank|invest|fund|stock|crypto|money|capital/.test(topicWords);
-    
+
     const domain = isTech ? 'technology' : isMarketing ? 'marketing' : isFood ? 'food & beverage' : isHealth ? 'healthcare' : isEducation ? 'education' : isFinance ? 'finance' : 'business';
 
     const allSlides = [
@@ -318,7 +319,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
   const handleSaveProject = async () => {
     if (!projectId) return;
     setSaveStatus('saving');
-    
+
     try {
       const response = await fetch(`${API_BASE}/api/ppt/${projectId}`, {
         method: 'PUT',
@@ -351,21 +352,21 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
     if (slides.length === 0) return;
 
     const pptx = new pptxgen();
-    
+
     // Set presentation properties
     pptx.title = projectName;
     pptx.subject = 'AI Generated Presentation Deck';
-    
+
     slides.forEach((slideData, slideIdx) => {
       const slide = pptx.addSlide();
-      
+
       // Theme Custom Colors mapping
       let bgHex = 'F4F4F3';
       let titleHex = '1A202C';
       let subtitleHex = '6B7280';
       let bulletHex = '4A5568';
       let accentHex = '10B981';
-      
+
       if (style === 'Corporate') {
         bgHex = '0F172A';
         titleHex = '3B82F6';
@@ -409,22 +410,22 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
         bulletHex = '451A03';
         accentHex = 'D97706';
       }
-      
+
       slide.background = { color: bgHex };
-      
+
       // Slide number badge
       slide.addText(`${slideIdx + 1}`, {
         x: 9.2, y: 0.3, w: 0.5, h: 0.3,
         fontSize: 9, bold: true, color: subtitleHex, align: 'right'
       });
-      
+
       // Title
       slide.addText(slideData.title, {
         x: 0.8, y: 0.6, w: '85%', h: 0.9,
         fontSize: slideIdx === 0 ? 32 : 26,
         bold: true, color: titleHex, fontFace: 'Arial'
       });
-      
+
       // Subtitle
       slide.addText(slideData.subtitle, {
         x: 0.8, y: 1.4, w: '85%', h: 0.5,
@@ -436,13 +437,13 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
         x: 0.8, y: 1.95, w: 1.5, h: 0.04,
         fill: { color: accentHex }
       });
-      
+
       // Bullet points with proper formatting
       const bulletObjects = slideData.bullets.map((b) => ({
         text: b,
         options: { bullet: { type: 'number' }, indentLevel: 0, paraSpaceAfter: 8 }
       }));
-      
+
       slide.addText(bulletObjects, {
         x: 0.8, y: 2.2, w: '85%', h: 3.6,
         fontSize: 12, color: bulletHex,
@@ -455,7 +456,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
         fontSize: 8, color: subtitleHex, fontFace: 'Arial'
       });
     });
-    
+
     pptx.writeFile({ fileName: `${projectName}.pptx` });
   };
 
@@ -463,12 +464,12 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
 
   return (
     <div className="space-y-6 animate-float-in">
-      
+
       {/* PPT Suite Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white font-sans flex items-center gap-2">
-            <span>📊</span> AI Presentation Builder
+            <span><Presentation size={80} strokeWidth={1.5} /></span> AI Presentation Builder
           </h1>
           {slides.length > 0 ? (
             <input
@@ -487,13 +488,13 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
 
         {slides.length > 0 && (
           <div className="flex flex-wrap gap-3">
-            <button 
+            <button
               onClick={() => { setSlides([]); setProjectId(null); }}
               className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <span>New Presentation</span>
             </button>
-            <button 
+            <button
               onClick={handleSaveProject}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
             >
@@ -502,7 +503,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
               ) : <Save size={14} />}
               <span>{saveStatus === 'success' ? 'Saved!' : 'Save Deck'}</span>
             </button>
-            <button 
+            <button
               onClick={handleExportPPTX}
               className="px-4 py-2 bg-white hover:bg-gray-100 text-[#0d1d19] rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
             >
@@ -519,7 +520,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
           {/* Prompt Entry Card */}
           <div className="lg:col-span-2 glass-card rounded-[32px] p-8 space-y-6 relative overflow-hidden">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] rounded-full bg-blue-500/5 blur-[80px]" />
-            
+
             <form onSubmit={handleGenerate} className="space-y-6 relative z-10">
               {error && (
                 <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded-2xl flex flex-col gap-1 relative overflow-hidden animate-shake">
@@ -528,8 +529,8 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
                       <span>⚠️</span>
                       <span>AI Presentation Generator Error</span>
                     </div>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setError(null)}
                       className="text-red-400 hover:text-red-300 font-bold transition-colors cursor-pointer text-sm px-1.5"
                     >
@@ -568,11 +569,10 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
                       key={num}
                       type="button"
                       onClick={() => setSlideCount(num)}
-                      className={`py-3 rounded-xl text-sm font-bold transition-all cursor-pointer flex flex-col items-center gap-1 ${
-                        slideCount === num
-                          ? 'bg-blue-500/20 border-2 border-blue-500 text-blue-300 shadow-md'
-                          : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
-                      }`}
+                      className={`py-3 rounded-xl text-sm font-bold transition-all cursor-pointer flex flex-col items-center gap-1 ${slideCount === num
+                        ? 'bg-blue-500/20 border-2 border-blue-500 text-blue-300 shadow-md'
+                        : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                        }`}
                     >
                       <span className="text-lg">{num}</span>
                       <span className="text-[9px] uppercase tracking-wider opacity-70">
@@ -587,17 +587,16 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
                 <label className="block text-xs font-bold uppercase tracking-wider text-blue-400">
                   Visual Layout Theme Style
                 </label>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {themes.map((theme) => (
                     <div
                       key={theme.id}
                       onClick={() => setStyle(theme.id)}
-                      className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
-                        style === theme.id
-                          ? 'bg-blue-500/10 border-blue-500 text-white shadow-md'
-                          : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10'
-                      }`}
+                      className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${style === theme.id
+                        ? 'bg-blue-500/10 border-blue-500 text-white shadow-md'
+                        : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10'
+                        }`}
                     >
                       <div>
                         <span className={`text-xs font-bold ${style === theme.id ? 'text-blue-400' : 'text-gray-300'}`}>
@@ -642,7 +641,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
               <p className="text-gray-400 text-sm font-light leading-relaxed">
                 Our layout synthesizer generates comprehensive, business-ready decks with structured sections covering every aspect of your topic.
               </p>
-              
+
               <ul className="space-y-3 text-xs text-gray-500 font-light">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
@@ -681,20 +680,20 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
       ) : (
         /* ACTIVE PRESENTATION VIEWER & SLIDE EDITOR */
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+
           {/* Main Slide Stage Preview */}
           <div className="lg:col-span-2 space-y-6">
-            
+
             {/* Horizontal Carousel Indicators & Navigation */}
             <div className="flex items-center justify-between bg-slate-900/50 backdrop-blur-md border border-white/5 px-4 py-3 rounded-2xl">
-              <button 
+              <button
                 disabled={currentSlideIdx === 0}
                 onClick={() => setCurrentSlideIdx(prev => Math.max(0, prev - 1))}
                 className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400 cursor-pointer"
               >
                 <ChevronLeft size={20} />
               </button>
-              
+
               <div className="text-xs font-bold text-gray-400 flex items-center gap-1.5">
                 <span>Slide</span>
                 <span className="text-white bg-blue-500/20 px-2 py-0.5 rounded text-blue-400 font-extrabold">
@@ -704,7 +703,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
                 <span>{slides.length}</span>
               </div>
 
-              <button 
+              <button
                 disabled={currentSlideIdx === slides.length - 1}
                 onClick={() => setCurrentSlideIdx(prev => Math.min(slides.length - 1, prev + 1))}
                 className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400 cursor-pointer"
@@ -715,7 +714,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
 
             {/* High Fidelity Theme Styled Slide Card Container */}
             <div className={`aspect-[16/10] w-full rounded-[32px] border shadow-2xl p-10 md:p-14 flex flex-col justify-between relative overflow-hidden transition-all duration-300 ${activeThemeClass.bg}`}>
-              
+
               {/* Monospace Tech background grids */}
               {style === 'Tech' && (
                 <div className="absolute inset-0 opacity-5 pointer-events-none bg-[radial-gradient(#06b6d4_1px,transparent_1px)] [background-size:16px_16px]" />
@@ -725,7 +724,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
               <div className="absolute top-4 right-6 text-[10px] font-bold opacity-40">
                 {currentSlideIdx + 1}/{slides.length}
               </div>
-              
+
               <div>
                 {/* Editable Slide Title */}
                 <div className="relative group">
@@ -761,7 +760,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
                       rows={Math.max(2, Math.ceil(bullet.length / 80))}
                       className="flex-1 bg-transparent text-xs md:text-sm focus:outline-none focus:bg-white/5 rounded px-2 py-0.5 border border-dashed border-transparent hover:border-gray-400/30 focus:border-blue-500 transition-colors resize-none leading-relaxed"
                     />
-                    <button 
+                    <button
                       onClick={() => deleteBulletPoint(bIdx)}
                       className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-500 transition-opacity p-1 cursor-pointer shrink-0"
                     >
@@ -789,14 +788,14 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
 
             {/* Slide Control options */}
             <div className="flex items-center justify-center gap-4">
-              <button 
+              <button
                 onClick={addSlide}
                 className="px-5 py-2.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Plus size={14} />
                 <span>Insert New Slide</span>
               </button>
-              <button 
+              <button
                 onClick={deleteSlide}
                 className="px-5 py-2.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
               >
@@ -813,17 +812,16 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
               <h3 className="text-sm font-semibold uppercase tracking-wider text-blue-400 font-sans flex items-center gap-2">
                 <span>📑</span> Presentation Index
               </h3>
-              
+
               <div className="space-y-3 overflow-y-auto max-h-[480px] pr-2">
                 {slides.map((s, idx) => (
                   <div
                     key={s.id}
                     onClick={() => setCurrentSlideIdx(idx)}
-                    className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all flex items-start gap-3 select-none ${
-                      idx === currentSlideIdx
-                        ? 'bg-blue-500/10 border-blue-500 text-white shadow-inner'
-                        : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                    }`}
+                    className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all flex items-start gap-3 select-none ${idx === currentSlideIdx
+                      ? 'bg-blue-500/10 border-blue-500 text-white shadow-inner'
+                      : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                      }`}
                   >
                     <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-xs font-bold shrink-0">
                       {idx + 1}
@@ -840,7 +838,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
                 ))}
               </div>
             </div>
-            
+
             {/* Quick Card info showing dynamic style themes */}
             <div className="glass-card rounded-[32px] p-6 space-y-3">
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Style Theme</h4>
