@@ -1,4 +1,4 @@
-const DEFAULT_BACKEND = 'https://ai-c4e0.onrender.com';
+const LEGACY_RENDER_BACKEND = 'https://ai-c4e0.onrender.com';
 
 export function getApiBase() {
   const configuredUrl = import.meta.env.VITE_API_URL;
@@ -14,9 +14,13 @@ export function getApiBase() {
     if (isLocalhost) {
       return 'http://localhost:5000';
     }
+
+    if (window.location.origin) {
+      return window.location.origin;
+    }
   }
 
-  return DEFAULT_BACKEND;
+  return LEGACY_RENDER_BACKEND;
 }
 
 export const API_BASE = getApiBase();
