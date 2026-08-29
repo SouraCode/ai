@@ -351,7 +351,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
   const handleExportPPTX = () => {
     if (slides.length === 0) return;
 
-    const pptx = new PptxGenJS();
+    const pptx = new pptxgen();
 
     // Set presentation properties
     pptx.title = projectName;
@@ -433,7 +433,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
       });
 
       // Accent line
-      slide.addShape(PptxGenJS.ShapeType.rect, {
+      slide.addShape(pptx.ShapeType.rect, {
         x: 0.8, y: 1.95, w: 1.5, h: 0.04,
         fill: { color: accentHex }
       });
