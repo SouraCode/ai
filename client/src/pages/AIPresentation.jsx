@@ -350,7 +350,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
   const handleExportPPTX = () => {
     if (slides.length === 0) return;
 
-    const pptx = new pptxgen();
+    const pptx = new PptxGenJS();
 
     // Set presentation properties
     pptx.title = projectName;
