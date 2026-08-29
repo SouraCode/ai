@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Presentation } from "lucide-react";
 import { useAuth } from '../context/AuthContext';
-import pptxgen from 'pptxgenjs';
+import PptxGenJS from 'pptxgenjs';
 import { Sparkles, Save, Download, ChevronLeft, ChevronRight, Edit3, Plus, Trash, Layout, Hash } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -351,7 +351,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
   const handleExportPPTX = () => {
     if (slides.length === 0) return;
 
-    const pptx = new pptxgen();
+    const pptx = new PptxGenJS();
 
     // Set presentation properties
     pptx.title = projectName;
@@ -433,7 +433,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
       });
 
       // Accent line
-      slide.addShape(pptx.ShapeType.rect, {
+      slide.addShape(PptxGenJS.ShapeType.rect, {
         x: 0.8, y: 1.95, w: 1.5, h: 0.04,
         fill: { color: accentHex }
       });
