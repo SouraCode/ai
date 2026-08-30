@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ai-multi-tool-api
+    name: ai-multi-tool-app
     env: node
     rootDir: .
     buildCommand: npm install --prefix server && npm install --prefix client && npm run build --prefix client

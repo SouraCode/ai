@@ -23,11 +23,11 @@ connectDB();
 
 // Global Middleware
 app.use(cors({
-  origin: '*', // Allow connections from frontend Vite dev server or production hosting
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json({ limit: '50mb' })); // Support base64 image edits
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve Uploaded Files Statically
@@ -41,11 +41,21 @@ app.use('/api/photos', photoRoutes);
 app.use('/api/ppt', pptRoutes);
 app.use('/api/resumes', resumeRoutes);
 
+// Serve the built frontend from the client dist folder
 const projectRoot = path.resolve(__dirname, '..');
 const clientDistPath = path.join(projectRoot, 'client', 'dist');
 const clientIndexPath = path.join(clientDistPath, 'index.html');
 
-// Health Check / Sanity Check Endpoint
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+
+  // Serve index.html for all non-API routes (SPA routing)
+  app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
+    res.sendFile(clientIndexPath);
+  });
+}
+
+// Health Check Endpoint
 app.get('/', (req, res) => {
   if (fs.existsSync(clientIndexPath) && req.accepts('html')) {
     return res.sendFile(clientIndexPath);
@@ -53,19 +63,9 @@ app.get('/', (req, res) => {
 
   res.json({
     status: 'online',
-    message: 'MERN Multi-Tool Application Server API running successfully.',
-    dbFallbackMode: process.env.DB_FALLBACK === 'true'
+    message: 'MERN Multi-Tool Application Server API running successfully.'
   });
 });
-
-// Serve the built frontend from the client dist folder when available
-if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
-
-  app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
-    res.sendFile(clientIndexPath);
-  });
-}
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -75,7 +75,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start Server Listening
+// Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Server launched successfully! Listening on port ${PORT}`);
   console.log(`📂 Static uploads served at http://localhost:${PORT}/uploads`);
