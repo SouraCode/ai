@@ -24,10 +24,11 @@ update both Render destinations in `vercel.json` and redeploy the Vercel project
 ## Vercel frontend
 
 1. Import the repository into Vercel and set the project Root Directory to
-   `client`. `vercel.json` installs the client dependencies, builds the app, and
-   publishes `dist` from that directory.
-2. Keep `vercel.json` in the deployed branch. It proxies API and upload
-   requests to Render and routes client-side navigation back to the app.
+   `client`. `client/vercel.json` installs dependencies, builds the app, and
+   publishes `dist` from that directory. The repository-root `vercel.json` is
+   also configured for deployments that use the repository root instead.
+2. Keep the matching `vercel.json` in the deployed branch. It proxies API and
+   upload requests to Render and routes client-side navigation back to the app.
 3. No `VITE_API_URL` environment variable is required for this setup. If you
    set one, it must be the Render service origin (for example,
    `https://ai-multi-tool-app.onrender.com`) with no `/api` suffix.
