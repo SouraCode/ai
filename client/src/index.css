@@ -166,14 +166,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .soft-ui-app .slide-canvas button { background-color: rgba(255,255,255,.12) !important; color: inherit !important; box-shadow: none !important; }
 .presentation-slide-heading { position: relative; z-index: 1; max-width: 92%; flex: 0 0 auto; }
 .presentation-slide-kicker { margin: 0 0 .45rem; font-size: clamp(.6rem, .72vw, .72rem); font-weight: 800; letter-spacing: .18em; }
-.presentation-slide-heading h2 { display: -webkit-box; max-width: 100%; margin: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: clamp(1.3rem, 2.5vw, 2.45rem); font-weight: 800; letter-spacing: -.035em; line-height: 1.08; overflow-wrap: anywhere; }
-.presentation-slide-subtitle { display: -webkit-box; max-width: 68rem; margin: .55rem 0 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: clamp(.76rem, .95vw, .98rem); line-height: 1.4; }
+.presentation-slide-heading h2 { display: -webkit-box; max-width: 100%; margin: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font-size: clamp(1.3rem, 2vw, 2rem); font-weight: 800; letter-spacing: -.035em; line-height: 1.08; overflow-wrap: anywhere; }
+.presentation-slide-subtitle { display: -webkit-box; max-width: 68rem; margin: .55rem 0 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: clamp(.74rem, .86vw, .9rem); line-height: 1.35; }
 .presentation-slide-rule { width: clamp(2.5rem, 6vw, 4.5rem); height: 3px; margin-top: .75rem; border-radius: 999px; opacity: .85; }
-.presentation-slide-list { position: relative; z-index: 1; display: grid; flex: 1 1 auto; min-height: 0; align-content: center; gap: clamp(.45rem, .9vw, .8rem); margin: .85rem 0; padding: 0; overflow: hidden; list-style: none; }
-.presentation-slide-list li { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: .65rem; align-items: start; font-size: clamp(.75rem, .95vw, .98rem); font-weight: 500; line-height: 1.38; overflow-wrap: anywhere; }
-.presentation-slide-list li > span:last-child { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.presentation-slide-list { position: relative; z-index: 1; display: grid; flex: 1 1 auto; min-height: 0; align-content: center; gap: clamp(.35rem, .65vw, .6rem); margin: .65rem 0; padding: 0; overflow: hidden; list-style: none; }
+.presentation-slide-list li { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); gap: .55rem; align-items: start; font-size: clamp(.72rem, .82vw, .88rem); font-weight: 500; line-height: 1.32; overflow-wrap: anywhere; }
+.presentation-slide-list li > span:last-child { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .presentation-slide-number { padding-top: .12em; font-size: .76em; font-weight: 800; letter-spacing: .08em; }
-.presentation-slide-footer { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid; padding-top: .7rem; font-size: clamp(.55rem, .75vw, .7rem); font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.presentation-slide-footer { display: flex; min-width: 0; justify-content: space-between; gap: 1rem; border-top: 1px solid; padding-top: .7rem; font-size: clamp(.55rem, .75vw, .7rem); font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.presentation-slide-footer span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .resume-section-nav button { min-width: 0; }
 @media (max-width: 639px) {
   .presentation-slide { min-height: 430px; aspect-ratio: auto; }
