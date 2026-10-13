@@ -4,4 +4,23 @@
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "20.19.0"
+
+# The API and uploaded images live on Render. Keep the browser requests same-origin
+# and let Netlify proxy them, avoiding CORS and mixed-content configuration.
+[[redirects]]
+  from = "/api/*"
+  to = "https://ai-multi-tool-app.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/uploads/*"
+  to = "https://ai-multi-tool-app.onrender.com/uploads/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

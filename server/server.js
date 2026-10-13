@@ -30,6 +30,11 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Render uses this endpoint to confirm the service booted successfully.
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 // Serve Uploaded Files Statically
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,9 +75,10 @@ app.get('/', (req, res) => {
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Unhandled server error:', err.stack);
-  res.status(500).json({
-    message: err.message || 'An unexpected internal server error occurred.'
-  });
+  const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : (err.message?.startsWith('Only JPG') ? 400 : 500);
+  res.status(status).json({ message: err.code === 'LIMIT_FILE_SIZE'
+    ? 'Image uploads are limited to 10 MB.'
+    : (err.message || 'An unexpected internal server error occurred.') });
 });
 
 // Start Server

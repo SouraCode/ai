@@ -21,6 +21,8 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
   const [slides, setSlides] = useState([]);
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
   const [saveStatus, setSaveStatus] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [isEditingSlide, setIsEditingSlide] = useState(false);
 
   const themes = [
     { id: 'Minimalist', label: 'Minimalist', desc: 'Soft creams, light grays, spacious styling', bg: 'bg-[#f4f4f3] text-stone-900 border-stone-200' },
@@ -318,6 +320,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
   const handleSaveProject = async () => {
     if (!projectId) return;
     setSaveStatus('saving');
+    setError(null);
 
     try {
       const response = await fetch(`${API_BASE}/api/ppt/${projectId}`, {
@@ -337,20 +340,21 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
         setSaveStatus('success');
         setTimeout(() => setSaveStatus(''), 3000);
       } else {
-        throw new Error('Save failed');
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Could not save this presentation. Please try again.');
       }
-    } catch (e) {
-      console.warn('⚠️ Server offline during slide saving. Local state cached.');
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus(''), 3000);
+    } catch (error) {
+      setSaveStatus('');
+      setError(error.message || 'Could not save this presentation. Please try again.');
     }
   };
 
   // Flawless PowerPoint (.pptx) Exports using pptxgenjs!
-  const handleExportPPTX = () => {
+  const handleExportPPTX = async () => {
     if (slides.length === 0) return;
 
     const pptx = new PptxGenJS();
+    pptx.layout = 'LAYOUT_WIDE';
 
     // Set presentation properties
     pptx.title = projectName;
@@ -413,82 +417,94 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
       slide.background = { color: bgHex };
 
       // Slide number badge
-      slide.addText(`${slideIdx + 1}`, {
-        x: 9.2, y: 0.3, w: 0.5, h: 0.3,
+      slide.addText(`${slideIdx + 1} / ${slides.length}`, {
+        x: 11.75, y: 0.35, w: 0.75, h: 0.3,
         fontSize: 9, bold: true, color: subtitleHex, align: 'right'
       });
 
       // Title
       slide.addText(slideData.title, {
-        x: 0.8, y: 0.6, w: '85%', h: 0.9,
-        fontSize: slideIdx === 0 ? 32 : 26,
-        bold: true, color: titleHex, fontFace: 'Arial'
+        x: 0.8, y: 0.65, w: 11.4, h: 1.0,
+        fontSize: slideIdx === 0 ? 34 : 28,
+        bold: true, color: titleHex, fontFace: 'Arial', fit: 'shrink', valign: 'mid'
       });
 
       // Subtitle
       slide.addText(slideData.subtitle, {
-        x: 0.8, y: 1.4, w: '85%', h: 0.5,
-        fontSize: 14, italic: true, color: subtitleHex, fontFace: 'Arial'
+        x: 0.8, y: 1.65, w: 11.4, h: 0.55,
+        fontSize: 16, italic: true, color: subtitleHex, fontFace: 'Arial', fit: 'shrink'
       });
 
       // Accent line
       slide.addShape(pptx.ShapeType.rect, {
-        x: 0.8, y: 1.95, w: 1.5, h: 0.04,
+        x: 0.8, y: 2.3, w: 1.5, h: 0.04,
         fill: { color: accentHex }
       });
 
       // Bullet points with proper formatting
-      const bulletObjects = slideData.bullets.map((b) => ({
-        text: b,
-        options: { bullet: { type: 'number' }, indentLevel: 0, paraSpaceAfter: 8 }
-      }));
-
-      slide.addText(bulletObjects, {
-        x: 0.8, y: 2.2, w: '85%', h: 3.6,
-        fontSize: 12, color: bulletHex,
-        lineSpacing: 20, fontFace: 'Arial', valign: 'top'
-      });
-
-      // Footer
-      slide.addText(`${projectName}  |  Slide ${slideIdx + 1} of ${slides.length}`, {
-        x: 0.8, y: 5.2, w: '85%', h: 0.3,
-        fontSize: 8, color: subtitleHex, fontFace: 'Arial'
+      const bulletText = (slideData.bullets || []).map((bullet) => `•  ${bullet}`).join('\n\n');
+      slide.addText(bulletText, {
+        x: 0.95, y: 2.65, w: 11.2, h: 4.25,
+        fontSize: 17, color: bulletHex,
+        breakLine: false, paraSpaceAfterPt: 12, fontFace: 'Arial', valign: 'top', fit: 'shrink',
+        margin: 0.05, lineSpacingMultiple: 1.15
       });
     });
 
-    pptx.writeFile({ fileName: `${projectName}.pptx` });
+    const fileName = `${(projectName || 'presentation').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '') || 'presentation'}.pptx`;
+    setExporting(true);
+    try {
+      await pptx.writeFile({ fileName });
+      setError(null);
+    } catch (exportError) {
+      console.error('Presentation export failed:', exportError);
+      setError('The PowerPoint file could not be created. Please try exporting again.');
+    } finally {
+      setExporting(false);
+    }
   };
 
-  const activeThemeClass = themes.find(t => t.id === style) || themes[0];
+  const slidePalettes = {
+    Minimalist: { bg: '#f4f4f3', title: '#17211e', subtitle: '#53615d', body: '#34433e', accent: '#53796b' },
+    Corporate: { bg: '#10233d', title: '#f8fafc', subtitle: '#b8d5f5', body: '#e2eaf4', accent: '#65a9f5' },
+    Tech: { bg: '#0a1421', title: '#ecfeff', subtitle: '#67e8f9', body: '#d5e7ed', accent: '#06b6d4' },
+    Creative: { bg: '#31105b', title: '#fff7ed', subtitle: '#fbcfe8', body: '#f5eafa', accent: '#fb7185' },
+    Forest: { bg: '#102a23', title: '#ecfdf5', subtitle: '#a7f3d0', body: '#d1fae5', accent: '#34d399' },
+    Charcoal: { bg: '#171717', title: '#fafafa', subtitle: '#fcd34d', body: '#e5e5e5', accent: '#f59e0b' },
+    Luxury: { bg: '#211b43', title: '#fff', subtitle: '#ddd6fe', body: '#f5f3ff', accent: '#facc15' },
+    Terracotta: { bg: '#fbf4ee', title: '#451a03', subtitle: '#9a3412', body: '#78350f', accent: '#d97706' },
+  };
+  const slidePalette = slidePalettes[style] || slidePalettes.Minimalist;
 
   return (
-    <div className="space-y-6 animate-float-in">
+    <div className="workspace-page space-y-6 animate-float-in">
 
       {/* PPT Suite Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-white font-sans flex items-center gap-2">
-            <span><Presentation size={80} strokeWidth={1.5} /></span> AI Presentation Builder
+          <p className="page-eyebrow">Creative studio / storytelling</p>
+          <h1 className="page-title">
+            <span className="page-title-icon" aria-hidden="true"><Presentation size={22} strokeWidth={1.8} /></span> AI presentations
           </h1>
           {slides.length > 0 ? (
             <input
               type="text"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              className="bg-transparent border-b border-white/10 hover:border-blue-400 focus:border-blue-500 text-sm text-gray-400 focus:outline-none py-1 mt-1 transition-colors font-medium"
+              className="page-project-name bg-transparent border-b border-white/10 hover:border-blue-400 focus:border-blue-500 text-sm text-gray-300 focus:outline-none py-1 transition-colors font-medium"
               placeholder="Name your presentation"
             />
           ) : (
-            <p className="text-xs text-gray-400 font-light mt-1">
-              Enter a creative business or tech topic prompt to synthesize professional slide layouts in seconds.
+            <p className="page-description">
+              Turn a clear topic into a polished deck. Choose a direction, generate your slides, then refine and export.
             </p>
           )}
         </div>
 
         {slides.length > 0 && (
-          <div className="flex flex-wrap gap-3">
+          <div className="page-header-actions">
             <button
-              onClick={() => { setSlides([]); setProjectId(null); }}
+              onClick={() => { setSlides([]); setProjectId(null); setError(null); }}
               className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <span>New Presentation</span>
@@ -504,20 +520,23 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
             </button>
             <button
               onClick={handleExportPPTX}
-              className="px-4 py-2 bg-white hover:bg-gray-100 text-[#0d1d19] rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+              disabled={exporting}
+              className="px-4 py-2 bg-white hover:bg-gray-100 text-[#0d1d19] rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md disabled:opacity-60"
             >
               <Download size={14} />
-              <span>Export PPTX</span>
+              <span>{exporting ? 'Preparing deck…' : 'Export PPTX'}</span>
             </button>
           </div>
         )}
       </div>
 
+      {slides.length > 0 && error && <div className="photo-feedback" role="alert">{error}</div>}
+
       {/* Generator Prompt Box (If no slides active) */}
       {slides.length === 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 2xl:grid-cols-3 gap-6 xl:gap-8">
           {/* Prompt Entry Card */}
-          <div className="lg:col-span-2 glass-card rounded-[32px] p-8 space-y-6 relative overflow-hidden">
+          <div className="2xl:col-span-2 glass-card rounded-[32px] p-6 sm:p-8 xl:p-10 space-y-6 relative overflow-hidden">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] rounded-full bg-blue-500/5 blur-[80px]" />
 
             <form onSubmit={handleGenerate} className="space-y-6 relative z-10">
@@ -631,7 +650,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
           </div>
 
           {/* Guidelines Sidebar */}
-          <div className="lg:col-span-1 glass-card rounded-[32px] p-8 flex flex-col justify-between relative">
+          <div className="2xl:col-span-1 glass-card rounded-[32px] p-6 sm:p-8 flex flex-col justify-between relative">
             <div className="space-y-6">
               <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
                 <Layout size={24} />
@@ -678,10 +697,10 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
         </div>
       ) : (
         /* ACTIVE PRESENTATION VIEWER & SLIDE EDITOR */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 2xl:grid-cols-3 gap-6 xl:gap-8">
 
           {/* Main Slide Stage Preview */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="2xl:col-span-2 space-y-6">
 
             {/* Horizontal Carousel Indicators & Navigation */}
             <div className="flex items-center justify-between bg-slate-900/50 backdrop-blur-md border border-white/5 px-4 py-3 rounded-2xl">
@@ -712,7 +731,7 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
             </div>
 
             {/* High Fidelity Theme Styled Slide Card Container */}
-            <div className={`aspect-[16/10] w-full rounded-[32px] border shadow-2xl p-10 md:p-14 flex flex-col justify-between relative overflow-hidden transition-all duration-300 ${activeThemeClass.bg}`}>
+            <div className="slide-canvas presentation-slide aspect-video w-full rounded-[28px] sm:rounded-[34px] border shadow-xl p-6 sm:p-9 xl:p-14 flex flex-col justify-between relative overflow-hidden transition-all duration-300" style={{ backgroundColor: slidePalette.bg, color: slidePalette.body, borderColor: `${slidePalette.accent}55` }}>
 
               {/* Monospace Tech background grids */}
               {style === 'Tech' && (
@@ -720,73 +739,32 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
               )}
 
               {/* Slide number badge */}
-              <div className="absolute top-4 right-6 text-[10px] font-bold opacity-40">
+              <div className="absolute top-5 right-6 text-xs font-bold" style={{ color: slidePalette.accent }}>
                 {currentSlideIdx + 1}/{slides.length}
               </div>
 
-              <div>
-                {/* Editable Slide Title */}
-                <div className="relative group">
-                  <input
-                    type="text"
-                    value={slides[currentSlideIdx].title || ''}
-                    onChange={(e) => updateSlideField('title', e.target.value)}
-                    className="w-full bg-transparent font-bold text-2xl md:text-4xl focus:outline-none focus:bg-white/5 rounded px-2 py-1 select-all relative z-10 border-b border-dashed border-transparent hover:border-gray-400/40 focus:border-blue-500 transition-colors"
-                  />
-                </div>
-
-                {/* Editable Slide Subtitle */}
-                <div className="relative mt-2">
-                  <input
-                    type="text"
-                    value={slides[currentSlideIdx].subtitle || ''}
-                    onChange={(e) => updateSlideField('subtitle', e.target.value)}
-                    className="w-full bg-transparent italic text-sm md:text-base focus:outline-none focus:bg-white/5 rounded px-2 py-1 border-b border-dashed border-transparent hover:border-gray-400/40 focus:border-blue-500 transition-colors opacity-80"
-                  />
-                </div>
-              </div>
-
-              {/* Editable Bullet points */}
-              <div className="my-6 space-y-3 overflow-y-auto max-h-[50%] pr-2">
+              <header className="presentation-slide-heading">
+                <p className="presentation-slide-kicker" style={{ color: slidePalette.accent }}>INSIGHT · {String(currentSlideIdx + 1).padStart(2, '0')}</p>
+                <h2 style={{ color: slidePalette.title }}>{slides[currentSlideIdx].title || 'Untitled slide'}</h2>
+                {slides[currentSlideIdx].subtitle && <p className="presentation-slide-subtitle" style={{ color: slidePalette.subtitle }}>{slides[currentSlideIdx].subtitle}</p>}
+                <div className="presentation-slide-rule" style={{ backgroundColor: slidePalette.accent }} />
+              </header>
+              <ol className="presentation-slide-list" style={{ color: slidePalette.body, '--slide-accent': slidePalette.accent }}>
                 {slides[currentSlideIdx].bullets.map((bullet, bIdx) => (
-                  <div key={bIdx} className="flex items-start gap-2.5 group">
-                    <span className="text-xs leading-none mt-2 shrink-0 font-bold opacity-60 min-w-[20px]">
-                      {style === 'Tech' ? `0${bIdx + 1}` : `${bIdx + 1}.`}
-                    </span>
-                    <textarea
-                      value={bullet}
-                      onChange={(e) => updateBulletPoint(bIdx, e.target.value)}
-                      rows={Math.max(2, Math.ceil(bullet.length / 80))}
-                      className="flex-1 bg-transparent text-xs md:text-sm focus:outline-none focus:bg-white/5 rounded px-2 py-0.5 border border-dashed border-transparent hover:border-gray-400/30 focus:border-blue-500 transition-colors resize-none leading-relaxed"
-                    />
-                    <button
-                      onClick={() => deleteBulletPoint(bIdx)}
-                      className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-500 transition-opacity p-1 cursor-pointer shrink-0"
-                    >
-                      <Trash size={12} />
-                    </button>
-                  </div>
+                  <li key={bIdx}><span className="presentation-slide-number" style={{ color: slidePalette.accent }}>{String(bIdx + 1).padStart(2, '0')}</span><span>{bullet}</span></li>
                 ))}
-
-                <button
-                  onClick={addBulletPoint}
-                  className="px-3 py-1 bg-white/5 border border-dashed border-white/10 hover:bg-white/10 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 mt-2 text-gray-400 hover:text-white cursor-pointer"
-                >
-                  <Plus size={12} />
-                  <span>Add Bullet point</span>
-                </button>
-              </div>
-
-              {/* Footer info matching reference styling */}
-              <div className="flex items-center justify-between text-[10px] uppercase tracking-wider opacity-60 font-semibold border-t pt-4">
-                <span>{projectName}</span>
-                <span>Slide {currentSlideIdx + 1}</span>
+              </ol>
+              <div className="presentation-slide-footer" style={{ borderColor: `${slidePalette.accent}55`, color: slidePalette.subtitle }}>
+                <span>{projectName || 'Presentation'}</span><span>{String(currentSlideIdx + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}</span>
               </div>
 
             </div>
 
             {/* Slide Control options */}
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button onClick={() => setIsEditingSlide(value => !value)} className="px-5 py-2.5 rounded-xl bg-white/70 border border-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+                <Edit3 size={14} /><span>{isEditingSlide ? 'Close editor' : 'Edit slide content'}</span>
+              </button>
               <button
                 onClick={addSlide}
                 className="px-5 py-2.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -803,10 +781,22 @@ export const AIPresentation = ({ projectToLoad, clearLoadedProject }) => {
               </button>
             </div>
 
+            {isEditingSlide && (
+              <section className="glass-card rounded-[28px] p-5 sm:p-7 space-y-5" aria-label="Edit active slide">
+                <div><p className="page-eyebrow">Slide {currentSlideIdx + 1} editor</p><h3 className="text-lg font-bold text-slate-800">Edit content</h3><p className="text-sm text-slate-500">Changes appear immediately on the slide preview.</p></div>
+                <label className="block text-sm font-semibold text-slate-700">Title<input value={slides[currentSlideIdx].title || ''} onChange={e => updateSlideField('title', e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-800" /></label>
+                <label className="block text-sm font-semibold text-slate-700">Subtitle<input value={slides[currentSlideIdx].subtitle || ''} onChange={e => updateSlideField('subtitle', e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-800" /></label>
+                <div className="space-y-3"><p className="text-sm font-semibold text-slate-700">Key points</p>
+                  {slides[currentSlideIdx].bullets.map((bullet, bIdx) => <div key={bIdx} className="flex items-start gap-2"><textarea value={bullet} onChange={e => updateBulletPoint(bIdx, e.target.value)} rows={3} className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800" aria-label={`Key point ${bIdx + 1}`} /><button onClick={() => deleteBulletPoint(bIdx)} className="rounded-xl p-3 text-rose-600 hover:bg-rose-50" aria-label={`Delete key point ${bIdx + 1}`}><Trash size={16} /></button></div>)}
+                  <button onClick={addBulletPoint} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white"><Plus size={15} className="mr-1 inline" />Add key point</button>
+                </div>
+              </section>
+            )}
+
           </div>
 
           {/* Slide Deck Index Grid & Outline List */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="2xl:col-span-1 space-y-6">
             <div className="glass-card rounded-[32px] p-6 space-y-4">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-blue-400 font-sans flex items-center gap-2">
                 <span>📑</span> Presentation Index

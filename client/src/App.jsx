@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import AuthCard from './components/AuthCard';
 import Dashboard from './components/Dashboard';
-import PhotoSuite from './pages/PhotoSuite';
-import AIPresentation from './pages/AIPresentation';
-import ResumeBuilder from './pages/ResumeBuilder';
-import Profile from './pages/Profile';
+const PhotoSuite = lazy(() => import('./pages/PhotoSuite'));
+const AIPresentation = lazy(() => import('./pages/AIPresentation'));
+const ResumeBuilder = lazy(() => import('./pages/ResumeBuilder'));
+const Profile = lazy(() => import('./pages/Profile'));
 
 const getTabFromHash = (hash) => {
   const clean = hash.replace(/^#\/?/, '');
@@ -15,7 +15,7 @@ const getTabFromHash = (hash) => {
 };
 
 const MainLayout = () => {
-  const { isAuthenticated, isLoading, theme } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState(() => getTabFromHash(window.location.hash));
   const [loadedProject, setLoadedProject] = useState(null);
 
@@ -62,11 +62,9 @@ const MainLayout = () => {
 
   if (isLoading) {
     return (
-      <div className={`min-h-screen w-full flex flex-col items-center justify-center transition-colors duration-500 ${
-        theme === 'forest' ? 'bg-[#0d1d19]' : 'bg-[#020617]'
-      }`}>
-        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <span className="text-emerald-400 font-medium text-xs tracking-wider uppercase mt-4 animate-pulse">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center transition-colors duration-500 bg-[#E0E5EC]">
+        <div className="w-10 h-10 border-4 border-[#6C63FF] border-t-transparent rounded-full animate-spin"></div>
+        <span className="text-[#6C63FF] font-medium text-xs tracking-wider uppercase mt-4 animate-pulse">
           Synchronizing Workspace...
         </span>
       </div>
@@ -78,45 +76,26 @@ const MainLayout = () => {
     return <AuthCard />;
   }
 
-  // Active theme background styles
-  const getAppBgClass = () => {
-    return theme === 'forest' 
-      ? 'bg-[#0d1d19] text-slate-100' 
-      : 'bg-[#020617] text-slate-100';
-  };
-
   return (
-    <div className={`min-h-screen w-full flex flex-col md:flex-row transition-colors duration-500 overflow-hidden relative ${getAppBgClass()}`}>
+    <div data-theme="soft-ui" className="min-h-screen w-full min-w-0 flex flex-col xl:flex-row transition-colors duration-500 overflow-x-hidden relative bg-[#E0E5EC] text-[#3D4852]">
       
-      {/* 1. Premium Glassmorphic Leaf Sidebar & Floating Bottom Nav */}
+      {/* Pill navigation stays labeled on desktop and becomes a compact menu on mobile. */}
       <Sidebar activeTab={activeTab} setActiveTab={navigateToTab} />
       
       {/* 2. Main Page Stage */}
-      {/* Note: added pb-24 for mobile screens so that the bottom navigation bar doesn't overlap contents! */}
-      <main className="flex-1 h-screen overflow-y-auto p-4 md:p-10 pb-24 md:pb-10 relative z-10">
+      <main className="min-w-0 w-full xl:flex-1 h-[100dvh] overflow-x-hidden overflow-y-auto p-4 pt-24 sm:p-6 sm:pt-24 xl:p-10 relative z-10">
         
         {/* Glowing glass overlay decorations */}
-        {theme === 'forest' ? (
-          <>
-            <div className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-forest-800/5 blur-[120px] pointer-events-none" />
-          </>
-        ) : (
-          <>
-            <div className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full bg-blue-500/5 blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-indigo-800/5 blur-[120px] pointer-events-none" />
-          </>
-        )}
-
-        <div className="max-w-7xl mx-auto pb-12 relative z-10">
+        <div className="w-full min-w-0 max-w-[1600px] mx-auto pb-12 relative z-10">
           
-          {/* TAB 1: Dashboard */}
-          {activeTab === 'dashboard' && (
-            <Dashboard 
-              setActiveTab={navigateToTab} 
-              loadProject={handleLoadProject} 
-            />
-          )}
+          <Suspense fallback={<div className="flex min-h-[45vh] items-center justify-center"><div className="w-9 h-9 border-[3px] border-emerald-400 border-t-transparent rounded-full animate-spin" aria-label="Loading workspace" /></div>}>
+            {/* TAB 1: Dashboard */}
+            {activeTab === 'dashboard' && (
+              <Dashboard
+                setActiveTab={navigateToTab}
+                loadProject={handleLoadProject}
+              />
+            )}
 
           {/* TAB 2: Photo Suite */}
           {activeTab === 'photos' && (
@@ -149,6 +128,7 @@ const MainLayout = () => {
               loadProject={handleLoadProject}
             />
           )}
+          </Suspense>
 
         </div>
       </main>
@@ -159,9 +139,11 @@ const MainLayout = () => {
 
 export const App = () => {
   return (
-    <AuthProvider>
-      <MainLayout />
-    </AuthProvider>
+    <div className="soft-ui-app">
+      <AuthProvider>
+        <MainLayout />
+      </AuthProvider>
+    </div>
   );
 };
 

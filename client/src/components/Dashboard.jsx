@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Image, Presentation, FileText, Trash2, Calendar, ArrowRight, Play } from 'lucide-react';
+import { Image, Presentation, FileText, Trash2, Calendar, ArrowRight, Sparkles } from 'lucide-react';
 import { API_BASE } from '../config/api';
 
 export const Dashboard = ({ setActiveTab, loadProject }) => {
@@ -95,12 +95,12 @@ export const Dashboard = ({ setActiveTab, loadProject }) => {
   };
 
   return (
-    <div className="space-y-8 animate-float-in">
+    <div className="workspace-page space-y-8 animate-float-in">
       
       {/* Premium Nature Welcome Banner */}
-      <div className="relative overflow-hidden rounded-[32px] bg-[#1e3f35] p-8 md:p-12 border border-white/5 shadow-glass">
+      <div className="dashboard-hero relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#173c30] via-[#10291f] to-[#0a1713] p-6 sm:p-8 md:p-12 border border-emerald-100/10 shadow-[0_28px_80px_rgba(0,0,0,.28)]">
         {/* Leaf details */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
+        <div className="absolute inset-0 opacity-[0.13] pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&q=80&w=1000" 
             alt="Leaf Background" 
@@ -110,31 +110,44 @@ export const Dashboard = ({ setActiveTab, loadProject }) => {
         <div className="absolute bottom-[-10%] right-[-10%] w-[300px] h-[300px] rounded-full bg-emerald-400/10 blur-[100px]" />
         
         <div className="relative z-10 max-w-xl">
-          <span className="inline-block px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-semibold rounded-full tracking-wider uppercase mb-4">
-            🌿 Creative Sandbox Dashboard
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-300/10 text-emerald-200 text-[11px] font-semibold rounded-full tracking-[.14em] uppercase mb-5 border border-emerald-200/15">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_#86efac]" /> Your creative workspace
           </span>
-          <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight font-sans mb-4">
+          <h1 className="text-[2.15rem] leading-[1.08] sm:text-4xl md:text-[3.5rem] font-semibold text-white tracking-[-.04em] font-sans mb-4">
             Welcome back, <span className="text-emerald-300">{user?.username || 'Jane'}</span>!
           </h1>
-          <p className="text-emerald-100/80 font-light text-base md:text-lg mb-6">
-            Your premium creative space is synchronized. Upload and enhance photos, draft AI slides, and craft professional resumes seamlessly.
+          <p className="text-emerald-50/70 leading-relaxed text-sm sm:text-base md:text-lg mb-7 max-w-lg">
+            One calm, focused place to edit imagery, shape a presentation, and build a resume you’re proud to share.
           </p>
           <div className="flex flex-wrap gap-4">
             <button 
               onClick={() => setActiveTab('photos')}
-              className="px-6 py-3 bg-emerald-500 text-[#0d1d19] hover:bg-emerald-400 transition-all font-semibold rounded-2xl flex items-center gap-2 cursor-pointer shadow-md"
+              className="px-5 py-3 bg-[#b5efc9] text-[#0d1d19] hover:bg-white transition-all font-semibold rounded-2xl flex items-center gap-2 cursor-pointer shadow-[0_8px_25px_rgba(125,220,160,.18)]"
             >
               <Image size={18} />
               <span>Launch Photo Suite</span>
             </button>
             <button 
               onClick={() => setActiveTab('ppt')}
-              className="px-6 py-3 bg-white/10 hover:bg-white/15 border border-white/15 text-white transition-all font-semibold rounded-2xl flex items-center gap-2 cursor-pointer"
+              className="px-5 py-3 bg-white/[.07] hover:bg-white/[.12] border border-white/15 text-white transition-all font-semibold rounded-2xl flex items-center gap-2 cursor-pointer"
             >
               <Presentation size={18} />
               <span>Create AI PPT</span>
             </button>
           </div>
+        </div>
+        <div className="hidden xl:block absolute right-10 top-1/2 -translate-y-1/2 w-[310px] h-[270px]" aria-hidden="true">
+          <div className="absolute right-0 top-2 w-[215px] h-[240px] rounded-[28px] rotate-[7deg] bg-gradient-to-br from-[#d9f4df] to-[#8fc5a0] p-3 shadow-2xl shadow-black/30">
+            <div className="h-full rounded-[19px] bg-[#13281e] overflow-hidden p-4 flex flex-col justify-between">
+              <div className="flex items-center justify-between"><span className="text-[10px] uppercase tracking-[.18em] text-emerald-200/70">Studio / 01</span><Sparkles size={15} className="text-emerald-200" /></div>
+              <div className="space-y-2"><div className="h-2 w-20 rounded-full bg-emerald-200/30" /><div className="text-2xl font-semibold leading-tight text-white">Make room<br />for ideas.</div></div>
+              <div className="rounded-xl border border-white/10 bg-white/[.06] p-3"><div className="flex gap-2"><div className="h-8 w-8 rounded-lg bg-emerald-300/20 flex items-center justify-center"><Image size={15} className="text-emerald-200" /></div><div><div className="h-2 w-16 rounded bg-white/30 mt-1"/><div className="h-1.5 w-11 rounded bg-white/15 mt-2"/></div></div></div>
+            </div>
+          </div>
+          <div className="absolute left-0 bottom-5 rounded-2xl border border-white/15 bg-[#f6f4e9] text-slate-900 p-4 shadow-xl shadow-black/25 -rotate-[5deg]">
+            <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center"><Presentation size={16}/></div><div><div className="text-[10px] text-slate-500">CREATIVE SUITE</div><div className="font-semibold text-sm">Ideas, in motion</div></div></div>
+          </div>
+          <div className="absolute right-2 -bottom-1 rounded-full border border-emerald-100/20 bg-[#1b4c39] px-3 py-2 text-xs font-medium text-emerald-50 shadow-lg flex items-center gap-2"><FileText size={14}/> Ready when you are</div>
         </div>
       </div>
 
@@ -144,11 +157,12 @@ export const Dashboard = ({ setActiveTab, loadProject }) => {
           <span>🚀</span> Quick Launch Suite
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
           {/* Card 1: Photo */}
-          <div 
+          <button
+            type="button"
             onClick={() => setActiveTab('photos')}
-            className="glass-card rounded-[24px] p-6 cursor-pointer flex flex-col justify-between group"
+            className="glass-card rounded-[24px] p-6 cursor-pointer flex flex-col justify-between group text-left"
           >
             <div>
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4 group-hover:scale-110 transition-transform">
@@ -156,19 +170,20 @@ export const Dashboard = ({ setActiveTab, loadProject }) => {
               </div>
               <h3 className="text-lg font-bold text-white font-sans group-hover:text-emerald-300 transition-colors">Photo Suite</h3>
               <p className="text-gray-400 text-sm font-light mt-2 leading-relaxed">
-                Upload JPEG/PNG files to resize, crop, rotate, adjust filters, and apply mock AI exposure enhancements instantly.
+                Upload a photo to resize, rotate, refine color, and export a clean, high-quality image.
               </p>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold mt-6 self-start">
               <span>Start Editing</span>
               <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
             </div>
-          </div>
+          </button>
 
           {/* Card 2: AI PPT */}
-          <div 
+          <button
+            type="button"
             onClick={() => setActiveTab('ppt')}
-            className="glass-card rounded-[24px] p-6 cursor-pointer flex flex-col justify-between group"
+            className="glass-card rounded-[24px] p-6 cursor-pointer flex flex-col justify-between group text-left"
           >
             <div>
               <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform">
@@ -183,12 +198,13 @@ export const Dashboard = ({ setActiveTab, loadProject }) => {
               <span>Generate PPT</span>
               <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
             </div>
-          </div>
+          </button>
 
           {/* Card 3: Resume */}
-          <div 
+          <button
+            type="button"
             onClick={() => setActiveTab('resume')}
-            className="glass-card rounded-[24px] p-6 cursor-pointer flex flex-col justify-between group"
+            className="glass-card rounded-[24px] p-6 cursor-pointer flex flex-col justify-between group text-left"
           >
             <div>
               <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-4 group-hover:scale-110 transition-transform">
@@ -203,7 +219,7 @@ export const Dashboard = ({ setActiveTab, loadProject }) => {
               <span>Build Profile</span>
               <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
             </div>
-          </div>
+          </button>
         </div>
       </div>
 

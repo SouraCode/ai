@@ -26,7 +26,7 @@ const validateEmail = (email) => {
 };
 
 export const Profile = ({ setActiveTab, loadProject }) => {
-  const { user, token, logout, updateProfile, theme } = useAuth();
+  const { user, token, logout, updateProfile } = useAuth();
 
   // Profile fields state
   const [username, setUsername] = useState(user?.username || '');
@@ -187,36 +187,37 @@ export const Profile = ({ setActiveTab, loadProject }) => {
   };
 
   const getThemeAccentClass = () => {
-    return theme === 'forest' ? 'bg-[#3d685a] hover:bg-[#1e3f35]' : 'bg-[#2563eb] hover:bg-[#1d4ed8]';
+    return 'bg-[#6C63FF] hover:bg-[#554DE0]';
   };
 
   return (
-    <div className="space-y-8 animate-float-in">
+    <div className="workspace-page space-y-8 animate-float-in">
 
       {/* Profile Section Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-white font-sans flex items-center gap-2">
-            <span>👤</span> Account Profile
+          <p className="page-eyebrow">Workspace / preferences and account</p>
+          <h1 className="page-title">
+            <span className="page-title-icon" aria-hidden="true"><User size={22}/></span> Your profile
           </h1>
-          <p className="text-gray-400 text-xs mt-1">
-            Manage your credentials, view your compiled works, and configure your session.
+          <p className="page-description">
+            Manage your account, appearance, and the projects you have created.
           </p>
         </div>
 
         <button
           onClick={logout}
-          className="px-4 py-2.5 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+          className="page-header-actions px-4 py-2.5 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
         >
           <LogOut size={14} />
           <span>Log Out Session</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 2xl:grid-cols-12 gap-6 xl:gap-8 items-start">
 
         {/* LEFT COLUMN: Update Profile Form & Metadata */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="2xl:col-span-5 space-y-6">
 
           {/* User Details card */}
           <div className="glass-card rounded-[32px] p-6 relative overflow-hidden">
@@ -243,7 +244,7 @@ export const Profile = ({ setActiveTab, loadProject }) => {
               </div>
               <div className="flex justify-between">
                 <span className="font-medium text-gray-500 uppercase text-[9px] tracking-wider">Theme Mode</span>
-                <span className="font-medium text-white capitalize">{theme} Theme</span>
+                <span className="font-medium text-white">Cool grey soft UI</span>
               </div>
               {user?.createdAt && (
                 <div className="flex justify-between">
@@ -396,7 +397,7 @@ export const Profile = ({ setActiveTab, loadProject }) => {
         </div>
 
         {/* RIGHT COLUMN: Aggregated Portfolio / Work Dashboard */}
-        <div className="lg:col-span-7 space-y-6">
+        <div className="2xl:col-span-7 space-y-6">
 
           <div className="glass-card rounded-[32px] p-6 relative overflow-hidden">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-2">

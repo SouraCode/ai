@@ -9,16 +9,7 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Theme State: 'forest' (premium plant dark green) or 'midnight' (deep space indigo/slate dark mode)
-  const [theme, setTheme] = useState(localStorage.getItem('app_theme') || 'forest');
-
-  useEffect(() => {
-    localStorage.setItem('app_theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'forest' ? 'midnight' : 'forest');
-  };
+  const theme = 'soft-ui';
 
   // Check auth state on startup
   useEffect(() => {
@@ -172,7 +163,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!user, isLoading, error, login, register, logout, updateProfile, theme, toggleTheme }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated: !!user, isLoading, error, login, register, logout, updateProfile, theme }}>
       {children}
     </AuthContext.Provider>
   );

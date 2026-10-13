@@ -227,6 +227,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
       const systemPrompt = `You are an expert presentation designer, industry researcher, and strategic consultant. Your job is to create an exceptionally detailed, accurate, and highly informative slide presentation deck on the topic: "${prompt}".
 
 You MUST write highly detailed content. Every single slide must have deep, context-specific insights.
+Do not include watermarks, tool or product branding, promotional messages, or decorative footer text. Avoid invented statistics; clearly qualify estimates and recommendations as proposals.
 - Do NOT use generic descriptions or high-level summaries. 
 - Bullet points must be fully developed sentences packed with actual details, definitions, strategies, logical points, and context related to "${prompt}".
 - Make the information extremely educational, accurate, and rich in value.

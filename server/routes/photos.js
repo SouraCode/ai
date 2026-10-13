@@ -4,11 +4,12 @@ import path from 'path';
 import fs from 'fs';
 import authMiddleware from '../middleware/authMiddleware.js';
 import { PhotoStore } from '../models/PhotoProject.js';
+import { fileURLToPath } from 'url';
 
 const router = express.Router();
 
 // Ensure uploads folder exists
-const uploadsDir = path.resolve('uploads');
+const uploadsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -16,7 +17,7 @@ if (!fs.existsSync(uploadsDir)) {
 // Multer Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -36,7 +37,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
-  limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit
+  limits: { fileSize: 10 * 1024 * 1024 } // 10 MiB per image
 });
 
 // @route   POST api/photos/upload
@@ -62,8 +63,47 @@ router.post('/upload', authMiddleware, upload.single('photo'), async (req, res) 
 
     res.status(201).json(project);
   } catch (error) {
+    if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     console.error('Photo upload error:', error);
     res.status(500).json({ message: 'Server error uploading photo' });
+  }
+});
+
+// Store the edited image as a file too. Keeping image bytes out of MongoDB avoids
+// document-size failures for high-resolution photos.
+router.put('/:id/edited', authMiddleware, upload.single('editedPhoto'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'No edited image uploaded' });
+
+  try {
+    const project = await PhotoStore.findById(req.params.id);
+    if (!project) {
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ message: 'Photo project not found' });
+    }
+    if (project.userId !== req.user.id) {
+      fs.unlinkSync(req.file.path);
+      return res.status(403).json({ message: 'Not authorized to modify this project' });
+    }
+
+    let filters = {};
+    try { filters = req.body.filters ? JSON.parse(req.body.filters) : {}; } catch { filters = {}; }
+    const updated = await PhotoStore.update(req.params.id, {
+      name: req.body.name || project.name,
+      editedUrl: `/uploads/${req.file.filename}`,
+      width: Number(req.body.width) || project.width,
+      height: Number(req.body.height) || project.height,
+      filters
+    });
+
+    if (project.editedUrl?.startsWith('/uploads/') && project.editedUrl !== project.originalUrl) {
+      const previousPath = path.join(uploadsDir, path.basename(project.editedUrl));
+      if (fs.existsSync(previousPath)) fs.unlinkSync(previousPath);
+    }
+    res.json(updated);
+  } catch (error) {
+    if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    console.error('Save edited photo error:', error);
+    res.status(500).json({ message: 'Server error saving edited photo' });
   }
 });
 
@@ -123,11 +163,14 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to delete this project' });
     }
 
-    // Attempt to delete local upload files
-    if (project.originalUrl && project.originalUrl.startsWith('/uploads/')) {
-      const filePath = path.join(path.resolve(), project.originalUrl);
-      if (fs.existsSync(filePath)) {
-        try { fs.unlinkSync(filePath); } catch (e) {}
+    // Remove original and edited files without deleting a shared original twice.
+    const imageUrls = new Set([project.originalUrl, project.editedUrl]);
+    for (const imageUrl of imageUrls) {
+      if (imageUrl && imageUrl.startsWith('/uploads/')) {
+        const filePath = path.join(uploadsDir, path.basename(imageUrl));
+        if (fs.existsSync(filePath)) {
+          try { fs.unlinkSync(filePath); } catch (e) {}
+        }
       }
     }
 

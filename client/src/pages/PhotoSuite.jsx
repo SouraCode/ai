@@ -11,11 +11,21 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
   const [projectName, setProjectName] = useState('Untitled Photo');
   const [imageSrc, setImageSrc] = useState(null);
   const [originalImage, setOriginalImage] = useState(null);
+  const [originalFile, setOriginalFile] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
+  const [isRendering, setIsRendering] = useState(false);
+  const [isLoadingPhoto, setIsLoadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState('');
 
   // Canvas Refs
   const originalCanvasRef = useRef(null);
   const editedCanvasRef = useRef(null);
+  const renderVersionRef = useRef(0);
+  const objectUrlRef = useRef(null);
+
+  useEffect(() => () => {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+  }, []);
 
   // Basic Adjustments
   const [brightness, setBrightness] = useState(100);
@@ -63,7 +73,9 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
       const url = projectToLoad.originalUrl.startsWith('/uploads/') 
         ? `${API_BASE}${projectToLoad.originalUrl}` 
         : projectToLoad.originalUrl;
-      loadImage(url);
+      setOriginalFile(null);
+      setIsLoadingPhoto(true);
+      loadImage(url, projectToLoad.filters);
       
       if (projectToLoad.filters) {
         const f = projectToLoad.filters;
@@ -93,15 +105,63 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
   }, [projectToLoad]);
 
   // Load Image helper
-  const loadImage = (src) => {
+  const loadImage = (src, savedFilters = null) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    if (!src.startsWith('blob:') && !src.startsWith('data:')) img.crossOrigin = 'anonymous';
     img.onload = () => {
+      const naturalWidth = img.naturalWidth;
+      const naturalHeight = img.naturalHeight;
+      setWidth(savedFilters?.width || naturalWidth);
+      setHeight(savedFilters?.height || naturalHeight);
+      setOriginalDimensions({ w: naturalWidth, h: naturalHeight });
+
+      const sourceScale = Math.min(1, Math.sqrt(8_000_000 / (naturalWidth * naturalHeight)), 12_000 / Math.max(naturalWidth, naturalHeight));
+      if (sourceScale < 1) {
+        const scale = sourceScale;
+        const optimizedCanvas = document.createElement('canvas');
+        optimizedCanvas.width = Math.max(1, Math.round(naturalWidth * scale));
+        optimizedCanvas.height = Math.max(1, Math.round(naturalHeight * scale));
+        const optimizedContext = optimizedCanvas.getContext('2d');
+        if (optimizedContext) {
+          optimizedContext.fillStyle = '#fff';
+          optimizedContext.fillRect(0, 0, optimizedCanvas.width, optimizedCanvas.height);
+          optimizedContext.imageSmoothingEnabled = true;
+          optimizedContext.imageSmoothingQuality = 'high';
+          optimizedContext.drawImage(img, 0, 0, optimizedCanvas.width, optimizedCanvas.height);
+          optimizedCanvas.toBlob((blob) => {
+            if (!blob) {
+              setOriginalImage(img);
+              setImageSrc(src);
+              setIsLoadingPhoto(false);
+              return;
+            }
+            const optimizedUrl = URL.createObjectURL(blob);
+            if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+            objectUrlRef.current = optimizedUrl;
+            const optimizedImage = new Image();
+            optimizedImage.onload = () => {
+              setOriginalImage(optimizedImage);
+              setImageSrc(optimizedUrl);
+              setPhotoError('');
+              setIsLoadingPhoto(false);
+            };
+            optimizedImage.onerror = () => {
+              setPhotoError('This image could not be optimized for editing.');
+              setIsLoadingPhoto(false);
+            };
+            optimizedImage.src = optimizedUrl;
+          }, 'image/jpeg', 0.96);
+          return;
+        }
+      }
       setOriginalImage(img);
       setImageSrc(src);
-      setWidth(img.naturalWidth);
-      setHeight(img.naturalHeight);
-      setOriginalDimensions({ w: img.naturalWidth, h: img.naturalHeight });
+      setPhotoError('');
+      setIsLoadingPhoto(false);
+    };
+    img.onerror = () => {
+      setPhotoError('This image could not be opened. Try a JPG, PNG, or WEBP photo.');
+      setIsLoadingPhoto(false);
     };
     img.src = src;
   };
@@ -110,20 +170,35 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
   const handleDrop = (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (event) => loadImage(event.target.result);
-      reader.readAsDataURL(file);
+    if (file) acceptPhoto(file);
+  };
+
+  const acceptPhoto = (file) => {
+    const acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!acceptedTypes.includes(file.type)) {
+      setPhotoError('Choose a JPG, PNG, or WEBP image.');
+      return;
     }
+    if (file.size > 10 * 1024 * 1024) {
+      setPhotoError('This image is larger than 10 MB. Choose a smaller file to continue.');
+      return;
+    }
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    objectUrlRef.current = URL.createObjectURL(file);
+    setProjectId(null);
+    setOriginalFile(file);
+    setOriginalImage(null);
+    setImageSrc(null);
+    setIsRendering(false);
+    setIsLoadingPhoto(true);
+    setProjectName(file.name.replace(/\.[^.]+$/, '') || 'Untitled Photo');
+    loadImage(objectUrlRef.current);
   };
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => loadImage(event.target.result);
-      reader.readAsDataURL(file);
-    }
+    if (file) acceptPhoto(file);
+    e.target.value = '';
   };
 
   // Lock Aspect Ratio Handler
@@ -169,313 +244,173 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
     }
   };
 
-  // ===== MAIN CANVAS RENDERING ENGINE =====
+  // Draw a capped live preview and process pixels off the main thread so large
+  // (up to 10 MB) uploads stay responsive while sliders are adjusted.
   useEffect(() => {
-    if (!originalImage) return;
+    if (!originalImage) return undefined;
 
-    const origCanvas = originalCanvasRef.current;
-    const editCanvas = editedCanvasRef.current;
-    if (!origCanvas || !editCanvas) return;
+    const originalCanvas = originalCanvasRef.current;
+    const editedCanvas = editedCanvasRef.current;
+    if (!originalCanvas || !editedCanvas) return undefined;
 
-    const origCtx = origCanvas.getContext('2d');
-    const editCtx = editCanvas.getContext('2d');
+    setIsRendering(true);
+    let worker;
+    const timer = window.setTimeout(() => {
+      const scale = Math.min(1, Math.sqrt(8_000_000 / Math.max(1, width * height)), 12_000 / Math.max(width, height, 1));
+      const sourceW = Math.max(1, Math.round(width * scale));
+      const sourceH = Math.max(1, Math.round(height * scale));
+      const isSwapped = rotation === 90 || rotation === 270;
+      const outputW = isSwapped ? sourceH : sourceW;
+      const outputH = isSwapped ? sourceW : sourceH;
 
-    // 1. Redraw Original Canvas for Reference
-    origCanvas.width = originalDimensions.w;
-    origCanvas.height = originalDimensions.h;
-    origCtx.drawImage(originalImage, 0, 0);
+      originalCanvas.width = Math.max(1, Math.round(originalDimensions.w * scale));
+      originalCanvas.height = Math.max(1, Math.round(originalDimensions.h * scale));
+      originalCanvas.getContext('2d')?.drawImage(originalImage, 0, 0, originalCanvas.width, originalCanvas.height);
 
-    // 2. Setup Editing Canvas size
-    const isSwapped = rotation === 90 || rotation === 270;
-    const finalW = isSwapped ? height : width;
-    const finalH = isSwapped ? width : height;
-
-    editCanvas.width = finalW;
-    editCanvas.height = finalH;
-
-    editCtx.clearRect(0, 0, finalW, finalH);
-    
-    // Apply CSS blur filter (pre-draw)
-    if (blur > 0) {
-      editCtx.filter = `blur(${blur}px)`;
-    } else {
-      editCtx.filter = 'none';
-    }
-    
-    editCtx.save();
-
-    // 3. Move context coordinates to center for rotation & flip scaling
-    editCtx.translate(finalW / 2, finalH / 2);
-    editCtx.rotate((rotation * Math.PI) / 180);
-
-    const scaleX = flipH ? -1 : 1;
-    const scaleY = flipV ? -1 : 1;
-    editCtx.scale(scaleX, scaleY);
-
-    // 4. Draw image
-    editCtx.drawImage(originalImage, -width / 2, -height / 2, width, height);
-    editCtx.restore();
-    
-    // Reset filter for pixel manipulation
-    editCtx.filter = 'none';
-
-    // 5. Pixel-level filter processing
-    const imgData = editCtx.getImageData(0, 0, finalW, finalH);
-    const data = imgData.data;
-
-    // Pre-calculate filter values
-    const bMul = brightness / 100;
-    const cVal = (contrast - 100) / 100;
-    const factor = (259 * (cVal * 255 + 255)) / (255 * (259 - cVal * 255));
-    const sMul = saturation / 100;
-    const gammaVal = gamma / 100;
-    const exposureVal = exposure / 50;
-    const highlightVal = highlights / 100;
-    const shadowVal = shadows / 100;
-    const tempVal = temperature / 50;
-    const hueRad = (hueRotate * Math.PI) / 180;
-
-    for (let i = 0; i < data.length; i += 4) {
-      let r = data[i];
-      let g = data[i + 1];
-      let b = data[i + 2];
-
-      // A. Exposure (pre-brightness, affects overall luminance curve)
-      if (exposureVal !== 0) {
-        const expMul = Math.pow(2, exposureVal);
-        r *= expMul;
-        g *= expMul;
-        b *= expMul;
+      editedCanvas.width = outputW;
+      editedCanvas.height = outputH;
+      const context = editedCanvas.getContext('2d', { willReadFrequently: true });
+      if (!context) {
+        setPhotoError('Your browser could not start the image editor. Try a current version of Chrome, Edge, Firefox, or Safari.');
+        setIsRendering(false);
+        return;
       }
+      context.clearRect(0, 0, outputW, outputH);
+      context.filter = blur > 0 ? `blur(${blur * scale}px)` : 'none';
+      context.save();
+      context.translate(outputW / 2, outputH / 2);
+      context.rotate((rotation * Math.PI) / 180);
+      context.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+      context.drawImage(originalImage, -sourceW / 2, -sourceH / 2, sourceW, sourceH);
+      context.restore();
+      context.filter = 'none';
 
-      // B. Brightness
-      r = r * bMul;
-      g = g * bMul;
-      b = b * bMul;
-
-      // C. Contrast
-      r = factor * (r - 128) + 128;
-      g = factor * (g - 128) + 128;
-      b = factor * (b - 128) + 128;
-
-      // D. Highlights & Shadows (tone curve)
-      if (highlightVal !== 0 || shadowVal !== 0) {
-        const luma = 0.299 * r + 0.587 * g + 0.114 * b;
-        const highlightMask = Math.max(0, (luma - 128) / 127); // 0 for shadows, 1 for highlights
-        const shadowMask = Math.max(0, (128 - luma) / 128);    // 1 for shadows, 0 for highlights
-        
-        const hAdj = highlightVal * highlightMask * 80;
-        const sAdj = shadowVal * shadowMask * 80;
-        
-        r += hAdj + sAdj;
-        g += hAdj + sAdj;
-        b += hAdj + sAdj;
-      }
-
-      // E. Gamma correction
-      if (gammaVal !== 1) {
-        const invGamma = 1 / gammaVal;
-        r = 255 * Math.pow(r / 255, invGamma);
-        g = 255 * Math.pow(g / 255, invGamma);
-        b = 255 * Math.pow(b / 255, invGamma);
-      }
-
-      // F. Temperature (warm = +red +yellow, cool = +blue)
-      if (tempVal !== 0) {
-        r += tempVal * 30;
-        g += tempVal * 10;
-        b -= tempVal * 30;
-      }
-
-      // G. Hue Rotation (color wheel shift via simplified YIQ)
-      if (hueRad !== 0) {
-        const cosH = Math.cos(hueRad);
-        const sinH = Math.sin(hueRad);
-        const nr = r * (0.299 + 0.701 * cosH + 0.168 * sinH)
-                  + g * (0.587 - 0.587 * cosH + 0.330 * sinH)
-                  + b * (0.114 - 0.114 * cosH - 0.497 * sinH);
-        const ng = r * (0.299 - 0.299 * cosH - 0.328 * sinH)
-                  + g * (0.587 + 0.413 * cosH + 0.035 * sinH)
-                  + b * (0.114 - 0.114 * cosH + 0.292 * sinH);
-        const nb = r * (0.299 - 0.300 * cosH + 1.250 * sinH)
-                  + g * (0.587 - 0.588 * cosH - 1.050 * sinH)
-                  + b * (0.114 + 0.886 * cosH - 0.203 * sinH);
-        r = nr; g = ng; b = nb;
-      }
-
-      // H. Saturation
-      const luma = 0.299 * r + 0.587 * g + 0.114 * b;
-      r = luma + sMul * (r - luma);
-      g = luma + sMul * (g - luma);
-      b = luma + sMul * (b - luma);
-
-      // I. Color Filter Presets
-      if (activeFilter === 'grayscale') {
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        r = g = b = gray;
-      } else if (activeFilter === 'sepia') {
-        const sr = r * 0.393 + g * 0.769 + b * 0.189;
-        const sg = r * 0.349 + g * 0.686 + b * 0.168;
-        const sb = r * 0.272 + g * 0.534 + b * 0.131;
-        r = sr; g = sg; b = sb;
-      } else if (activeFilter === 'invert') {
-        r = 255 - r;
-        g = 255 - g;
-        b = 255 - b;
-      } else if (activeFilter === 'warm') {
-        r = Math.min(255, r * 1.1 + 15);
-        g = g * 1.02;
-        b = b * 0.85;
-      } else if (activeFilter === 'cool') {
-        r = r * 0.85;
-        g = g * 0.95;
-        b = Math.min(255, b * 1.15 + 10);
-      } else if (activeFilter === 'vintage') {
-        r = r * 0.9 + 30;
-        g = g * 0.85 + 15;
-        b = b * 0.7 + 10;
-      } else if (activeFilter === 'dramatic') {
-        const dLuma = 0.299 * r + 0.587 * g + 0.114 * b;
-        r = dLuma + 1.5 * (r - dLuma);
-        g = dLuma + 1.5 * (g - dLuma);
-        b = dLuma + 1.5 * (b - dLuma);
-        // extra contrast
-        r = 1.3 * (r - 128) + 128;
-        g = 1.3 * (g - 128) + 128;
-        b = 1.3 * (b - 128) + 128;
-      } else if (activeFilter === 'fade') {
-        r = r * 0.8 + 40;
-        g = g * 0.8 + 40;
-        b = b * 0.8 + 45;
-      }
-
-      // J. Noise / Grain
-      if (noise > 0 || grain > 0) {
-        const totalNoise = noise + grain * 0.5;
-        const noiseVal = (Math.random() - 0.5) * totalNoise * 2.5;
-        r += noiseVal;
-        g += noiseVal;
-        b += noiseVal;
-      }
-
-      // Clamp
-      data[i]     = Math.min(255, Math.max(0, r));
-      data[i + 1] = Math.min(255, Math.max(0, g));
-      data[i + 2] = Math.min(255, Math.max(0, b));
-    }
-
-    editCtx.putImageData(imgData, 0, 0);
-
-    // K. Vignette overlay (drawn after pixel manipulation)
-    if (vignette > 0) {
-      const vigStr = vignette / 100;
-      const cx = finalW / 2;
-      const cy = finalH / 2;
-      const radius = Math.max(cx, cy) * (1.2 - vigStr * 0.4);
-      const gradient = editCtx.createRadialGradient(cx, cy, radius * 0.3, cx, cy, radius);
-      gradient.addColorStop(0, 'rgba(0,0,0,0)');
-      gradient.addColorStop(0.7, `rgba(0,0,0,${vigStr * 0.3})`);
-      gradient.addColorStop(1, `rgba(0,0,0,${vigStr * 0.8})`);
-      editCtx.fillStyle = gradient;
-      editCtx.fillRect(0, 0, finalW, finalH);
-    }
-
-    // L. Sharpen (convolution kernel applied as overlay)
-    if (sharpen > 0) {
-      const sharpAmount = sharpen / 100;
-      const sharpData = editCtx.getImageData(0, 0, finalW, finalH);
-      const sd = sharpData.data;
-      const origData = new Uint8ClampedArray(sd);
-      
-      for (let y = 1; y < finalH - 1; y++) {
-        for (let x = 1; x < finalW - 1; x++) {
-          const idx = (y * finalW + x) * 4;
-          for (let c = 0; c < 3; c++) {
-            const center = origData[idx + c] * (1 + 4 * sharpAmount);
-            const neighbors = (
-              origData[((y - 1) * finalW + x) * 4 + c] +
-              origData[((y + 1) * finalW + x) * 4 + c] +
-              origData[(y * finalW + (x - 1)) * 4 + c] +
-              origData[(y * finalW + (x + 1)) * 4 + c]
-            ) * sharpAmount;
-            sd[idx + c] = Math.min(255, Math.max(0, center - neighbors));
+      try {
+        const pixels = context.getImageData(0, 0, outputW, outputH);
+        const id = ++renderVersionRef.current;
+        worker = new Worker(new URL('./photoEnhance.worker.js', import.meta.url), { type: 'module' });
+        worker.onmessage = ({ data }) => {
+          if (data.id !== renderVersionRef.current) return;
+          context.putImageData(new ImageData(new Uint8ClampedArray(data.buffer), data.width, data.height), 0, 0);
+          if (vignette > 0) {
+            const strength = vignette / 100;
+            const radius = Math.max(outputW, outputH) * (1.2 - strength * 0.4);
+            const gradient = context.createRadialGradient(outputW / 2, outputH / 2, radius * 0.3, outputW / 2, outputH / 2, radius);
+            gradient.addColorStop(0, 'rgba(0,0,0,0)');
+            gradient.addColorStop(0.7, `rgba(0,0,0,${strength * 0.3})`);
+            gradient.addColorStop(1, `rgba(0,0,0,${strength * 0.8})`);
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, outputW, outputH);
           }
-        }
+          setPhotoError('');
+          setIsRendering(false);
+          worker.terminate();
+        };
+        worker.onerror = () => {
+          setPhotoError('The photo could not be processed. Try resetting the adjustments or using a smaller image.');
+          setIsRendering(false);
+          worker?.terminate();
+        };
+        worker.postMessage({
+          id,
+          buffer: pixels.data.buffer,
+          width: outputW,
+          height: outputH,
+          settings: { brightness, contrast, saturation, hueRotate, temperature, exposure, gamma, highlights, shadows, sharpen, noise, grain, activeFilter }
+        }, [pixels.data.buffer]);
+      } catch (error) {
+        console.error('Photo processing failed:', error);
+        setPhotoError('This image is too large for the available browser memory. Try a smaller image.');
+        setIsRendering(false);
       }
-      editCtx.putImageData(sharpData, 0, 0);
-    }
+    }, 70);
 
-  }, [originalImage, brightness, contrast, saturation, rotation, flipH, flipV, width, height, 
+    return () => {
+      window.clearTimeout(timer);
+      worker?.terminate();
+    };
+  }, [originalImage, brightness, contrast, saturation, rotation, flipH, flipV, width, height,
       originalDimensions, hueRotate, temperature, exposure, gamma, highlights, shadows,
       blur, sharpen, noise, vignette, grain, activeFilter]);
-
   // Auto-Enhance Presets
   const enhancePresets = [
-    { label: '✨ Auto Enhance', fn: () => { setBrightness(108); setContrast(112); setSaturation(120); setExposure(5); setHighlights(10); setShadows(15); setVignette(20); } },
+    { label: '✨ Auto Enhance', fn: () => { setBrightness(103); setContrast(106); setSaturation(108); setExposure(2); setHighlights(-8); setShadows(8); setSharpen(10); setVignette(0); setNoise(0); setGrain(0); setActiveFilter('none'); } },
     { label: '🎬 Cinematic', fn: () => { setBrightness(95); setContrast(125); setSaturation(85); setTemperature(-8); setVignette(45); setGamma(110); setShadows(-15); } },
     { label: '🌅 Golden Hour', fn: () => { setBrightness(105); setContrast(105); setSaturation(130); setTemperature(25); setExposure(8); setHighlights(15); setActiveFilter('warm'); } },
     { label: '🖤 B&W Film', fn: () => { setActiveFilter('grayscale'); setContrast(130); setBrightness(102); setGrain(25); setVignette(30); } },
     { label: '📸 Vintage', fn: () => { setActiveFilter('vintage'); setSaturation(80); setContrast(108); setGrain(15); setVignette(25); setGamma(95); } },
-    { label: '💎 HDR Pop', fn: () => { setBrightness(105); setContrast(135); setSaturation(140); setHighlights(-20); setShadows(30); setSharpen(30); } },
+    { label: '💎 HDR Pop', fn: () => { setBrightness(103); setContrast(118); setSaturation(115); setHighlights(-10); setShadows(15); setSharpen(20); setNoise(0); setGrain(0); setActiveFilter('none'); } },
   ];
 
   const handleDownload = () => {
     const editCanvas = editedCanvasRef.current;
     if (!editCanvas) return;
-    const dataUrl = editCanvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = `${projectName}_edited.png`;
-    link.href = dataUrl;
-    link.click();
+    editCanvas.toBlob((blob) => {
+      if (!blob) {
+        setPhotoError('The edited image could not be exported. Try reducing its dimensions.');
+        return;
+      }
+      const link = document.createElement('a');
+      const safeName = (projectName || 'photo').replace(/[^a-z0-9-_]+/gi, '-');
+      link.download = `${safeName}-edited.png`;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }, 'image/png');
   };
 
   const handleSaveProject = async () => {
     const editCanvas = editedCanvasRef.current;
     if (!editCanvas) return;
-    
+
     setSaveStatus('saving');
-    const base64Image = editCanvas.toDataURL('image/jpeg', 0.85);
-
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      };
-      
-      const payload = {
-        name: projectName,
-        editedUrl: base64Image,
-        width,
-        height,
-        filters: { brightness, contrast, saturation, rotation, flipH, flipV, 
-                   hueRotate, temperature, exposure, gamma, highlights, shadows,
-                   blur, sharpen, noise, vignette, grain, activeFilter }
-      };
+      const createEditedBlob = (quality) => new Promise((resolve, reject) => {
+        editCanvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Unable to export edited image')), 'image/jpeg', quality);
+      });
+      let editedBlob = await createEditedBlob(0.92);
+      if (editedBlob.size > 10 * 1024 * 1024) editedBlob = await createEditedBlob(0.82);
+      if (editedBlob.size > 10 * 1024 * 1024) throw new Error('This edit is still larger than 10 MB. Reduce the output dimensions and save again.');
+      let savedProjectId = projectId;
 
-      let response;
-      if (projectId) {
-        response = await fetch(`${API_BASE}/api/photos/${projectId}`, {
-          method: 'PUT', headers, body: JSON.stringify(payload)
+      if (!savedProjectId) {
+        if (!originalFile) throw new Error('Upload an image before saving this project.');
+        const originalForm = new FormData();
+        originalForm.append('photo', originalFile, originalFile.name);
+        originalForm.append('name', projectName);
+        originalForm.append('width', String(originalDimensions.w));
+        originalForm.append('height', String(originalDimensions.h));
+        const createResponse = await fetch(`${API_BASE}/api/photos/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: originalForm
         });
-      } else {
-        response = await fetch(`${API_BASE}/api/photos/upload`, {
-          method: 'POST', headers,
-          body: JSON.stringify({ name: projectName, photo: base64Image, width, height })
-        });
+        const created = await createResponse.json();
+        if (!createResponse.ok) throw new Error(created.message || 'Could not upload the original photo.');
+        savedProjectId = created._id;
+        setProjectId(savedProjectId);
       }
 
-      if (response.ok) {
-        const data = await response.json();
-        if (!projectId) setProjectId(data._id);
-        setSaveStatus('success');
-        setTimeout(() => setSaveStatus(''), 3000);
-      } else {
-        throw new Error('Save API error');
-      }
-    } catch (e) {
-      console.warn('⚠️ Server upload offline. Performing client simulation save.');
+      const editedForm = new FormData();
+      editedForm.append('editedPhoto', editedBlob, 'edited-photo.jpg');
+      editedForm.append('name', projectName);
+      editedForm.append('width', String(editCanvas.width));
+      editedForm.append('height', String(editCanvas.height));
+      editedForm.append('filters', JSON.stringify({ brightness, contrast, saturation, rotation, flipH, flipV,
+        hueRotate, temperature, exposure, gamma, highlights, shadows, blur, sharpen, noise, vignette, grain, activeFilter }));
+      const saveResponse = await fetch(`${API_BASE}/api/photos/${savedProjectId}/edited`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+        body: editedForm
+      });
+      const saved = await saveResponse.json();
+      if (!saveResponse.ok) throw new Error(saved.message || 'Could not save the edited photo.');
       setSaveStatus('success');
+      setPhotoError('');
       setTimeout(() => setSaveStatus(''), 3000);
+    } catch (error) {
+      setSaveStatus('');
+      setPhotoError(error.message || 'Could not save the edited photo. Please try again.');
     }
   };
 
@@ -520,25 +455,33 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
   ];
 
   return (
-    <div className="space-y-6 animate-float-in">
+    <div className="workspace-page space-y-6 animate-float-in">
       
       {/* Photo Suite Top Bar */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-white font-sans flex items-center gap-2">
-            <span>🎨</span> Photo Suite Editor
+          <p className="page-eyebrow">Creative studio / image editing</p>
+          <h1 className="page-title">
+            <span className="page-title-icon" aria-hidden="true">🎨</span> Photo Suite
           </h1>
           <input
             type="text"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
-            className="bg-transparent border-b border-white/10 hover:border-emerald-400 focus:border-emerald-500 text-sm text-gray-400 focus:outline-none py-1 mt-1 transition-colors font-medium"
+            className="page-project-name bg-transparent border-b border-white/10 hover:border-emerald-400 focus:border-emerald-500 text-sm text-gray-300 focus:outline-none py-1 transition-colors font-medium"
             placeholder="Name your artwork"
           />
         </div>
 
         {imageSrc && (
-          <div className="flex flex-wrap gap-3">
+          <div className="page-header-actions">
+            <button
+              onClick={enhancePresets[0].fn}
+              className="px-4 py-2 bg-[#6C63FF] text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+            >
+              <Sparkles size={14} />
+              <span>Auto enhance</span>
+            </button>
             <button 
               onClick={handleReset}
               className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -546,8 +489,9 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
               <RefreshCw size={14} />
               <span>Reset All</span>
             </button>
-            <button 
+            <button
               onClick={handleSaveProject}
+              disabled={saveStatus === 'saving' || isRendering}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
             >
               {saveStatus === 'saving' ? (
@@ -555,8 +499,9 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
               ) : <Save size={14} />}
               <span>{saveStatus === 'success' ? 'Saved!' : 'Save Project'}</span>
             </button>
-            <button 
+            <button
               onClick={handleDownload}
+              disabled={isRendering}
               className="px-4 py-2 bg-white hover:bg-gray-100 text-[#0d1d19] rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
             >
               <Download size={14} />
@@ -566,35 +511,52 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
         )}
       </div>
 
+      {photoError && (
+        <div role="alert" className="photo-feedback" aria-live="polite">
+          <span>{photoError}</span>
+          <button type="button" onClick={() => setPhotoError('')} aria-label="Dismiss message">×</button>
+        </div>
+      )}
+
+      {imageSrc && (
+        <div className="photo-specs" role="status">
+          <span>{originalDimensions.w.toLocaleString()} × {originalDimensions.h.toLocaleString()} px source</span>
+          {originalFile && <span>{Math.round(originalFile.size / 1024)} KB upload</span>}
+          <span>{isRendering ? 'Updating preview…' : 'Optimized preview and export · up to 8 MP'}</span>
+        </div>
+      )}
+
       {/* Editor Body Grid */}
       {!imageSrc ? (
         /* DRAG AND DROP ZONE */
         <div 
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
-          className="h-[450px] rounded-[32px] border-2 border-dashed border-emerald-800/40 bg-emerald-950/10 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center group hover:border-emerald-500/50 hover:bg-emerald-950/20 transition-all duration-300 relative overflow-hidden"
+          className="photo-upload-card min-h-[420px] rounded-[32px] border-2 border-dashed border-emerald-800/40 bg-emerald-950/10 backdrop-blur-md flex flex-col items-center justify-center p-6 sm:p-10 text-center group hover:border-emerald-500/50 hover:bg-emerald-950/20 transition-all duration-300 relative overflow-hidden"
         >
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full bg-emerald-500/5 blur-[80px]" />
           
           <div className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-6 group-hover:scale-110 transition-transform duration-300 relative z-10">
             <Upload size={36} />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2 relative z-10 font-sans">Upload your high-res photography</h3>
+          <h3 className="text-xl font-bold text-white mb-2 relative z-10 font-sans">
+            {isLoadingPhoto ? 'Preparing your photo…' : 'Upload your high-res photography'}
+          </h3>
           <p className="text-gray-400 text-sm font-light max-w-sm mb-8 leading-relaxed relative z-10">
-            Drag and drop your JPG or PNG files here, or browse files directly from your disk storage.
+            Drag a photo here or choose it from your device. JPG, PNG, and WEBP are supported up to 10 MB per image.
           </p>
           
           <label className="px-6 py-3 bg-[#3d685a] hover:bg-[#1e3f35] text-white font-semibold rounded-2xl transition-all shadow-md cursor-pointer relative z-10">
             Browse Storage
-            <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileSelect} />
           </label>
         </div>
       ) : (
         /* MAIN CANVAS WORKSPACE & CONTROLS */
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 2xl:grid-cols-12 gap-6 items-start">
           
           {/* Controls Side Panel */}
-          <div className="lg:col-span-1 space-y-4">
+          <div className="photo-controls order-2 2xl:col-span-4 2xl:col-start-9 2xl:row-start-1 space-y-4">
             
             {/* Panel Tabs */}
             <div className="glass-card rounded-2xl p-1.5 flex flex-wrap gap-1">
@@ -810,7 +772,7 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
           </div>
 
           {/* Side-by-Side Live Previews Area */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="photo-preview-workspace order-1 2xl:col-span-8 2xl:col-start-1 2xl:row-start-1 space-y-6">
             
             {/* Canvases layout container */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -818,10 +780,10 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
               {/* Box 1: Original Canvas */}
               <div className="glass-card rounded-3xl p-4 flex flex-col items-center">
                 <div className="w-full flex items-center justify-between text-xs mb-3">
-                  <span className="font-semibold text-gray-400 uppercase tracking-wider">Original Preview</span>
+                <span className="font-semibold text-gray-400 uppercase tracking-wider">Original preview</span>
                   <span className="text-[10px] px-2 py-0.5 bg-white/10 text-white rounded font-medium">Source</span>
                 </div>
-                <div className="w-full h-[320px] rounded-2xl overflow-hidden bg-slate-900 border border-white/5 flex items-center justify-center p-2">
+                <div className="photo-preview-stage w-full rounded-2xl overflow-hidden bg-slate-900 border border-white/5 flex items-center justify-center p-2">
                   <canvas 
                     ref={originalCanvasRef} 
                     className="max-w-full max-h-full object-contain shadow-md rounded-lg" 
@@ -834,10 +796,10 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] rounded-full bg-emerald-500/5 blur-[60px]" />
                 
                 <div className="w-full flex items-center justify-between text-xs mb-3 relative z-10">
-                  <span className="font-semibold text-emerald-400 uppercase tracking-wider">Active Workspace</span>
+                <span className="font-semibold text-emerald-400 uppercase tracking-wider">Enhanced preview</span>
                   <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded font-bold">Processed</span>
                 </div>
-                <div className="w-full h-[320px] rounded-2xl overflow-hidden bg-slate-900 border border-white/5 flex items-center justify-center p-2 relative z-10">
+                <div className="photo-preview-stage w-full rounded-2xl overflow-hidden bg-slate-900 border border-white/5 flex items-center justify-center p-2 relative z-10">
                   <canvas 
                     ref={editedCanvasRef} 
                     className="max-w-full max-h-full object-contain shadow-lg rounded-lg border border-emerald-500/20" 
@@ -852,7 +814,7 @@ export const PhotoSuite = ({ projectToLoad, clearLoadedProject }) => {
               <label className="text-xs text-gray-400 hover:text-emerald-400 font-semibold cursor-pointer transition-colors flex items-center gap-1.5">
                 <Upload size={14} />
                 <span>Upload a different photograph</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileSelect} />
               </label>
             </div>
 

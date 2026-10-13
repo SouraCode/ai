@@ -13,7 +13,7 @@ export function getApiBase() {
       return 'http://localhost:5000';
     }
 
-    // In production, use the same origin as the frontend
+    // Netlify proxies /api and /uploads to Render in production.
     if (window.location.origin) {
       return window.location.origin;
     }

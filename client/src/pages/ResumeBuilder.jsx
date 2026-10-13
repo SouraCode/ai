@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import ATSResume from '../components/ATSResume';
 import { 
   Save, 
   Plus, 
@@ -22,13 +23,14 @@ import {
 import { API_BASE } from '../config/api';
 
 export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
-  const { token, theme } = useAuth();
+  const { token } = useAuth();
 
   // Active Resume Document States
   const [projectId, setProjectId] = useState(null);
   const [projectName, setProjectName] = useState('My Comprehensive Resume');
-  const [templateId, setTemplateId] = useState('modern'); // modern, academic, minimalist
+  const [templateId, setTemplateId] = useState('ats'); // ats, modern, academic, minimalist
   const [saveStatus, setSaveStatus] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   // Mobile View Toggler: 'edit' or 'preview'
   const [mobileMode, setMobileMode] = useState('edit');
@@ -158,7 +160,7 @@ export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
     if (projectToLoad) {
       setProjectId(projectToLoad._id);
       setProjectName(projectToLoad.name);
-      setTemplateId(projectToLoad.templateId || 'modern');
+      setTemplateId(projectToLoad.templateId || 'ats');
       if (projectToLoad.personalInfo) setPersonalInfo(projectToLoad.personalInfo);
       if (projectToLoad.experience) setExperience(projectToLoad.experience);
       if (projectToLoad.education) setEducation(projectToLoad.education);
@@ -392,6 +394,7 @@ export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
   // Save changes to MERN backend
   const handleSaveProject = async () => {
     setSaveStatus('saving');
+    setSaveError('');
     const payload = {
       name: projectName,
       templateId,
@@ -430,88 +433,79 @@ export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
         });
       }
 
-      if (response.ok) {
-        const data = await response.json();
-        if (!projectId) setProjectId(data._id);
-        setSaveStatus('success');
-        setTimeout(() => setSaveStatus(''), 3000);
-      } else {
-        throw new Error('Save failed');
-      }
-    } catch (e) {
-      console.warn('⚠️ Server offline during resume saving. Local caching simulated.');
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Could not save this resume. Please try again.');
+      if (!projectId) setProjectId(data._id);
       setSaveStatus('success');
       setTimeout(() => setSaveStatus(''), 3000);
+    } catch (error) {
+      setSaveStatus('');
+      setSaveError(error.message || 'Could not save this resume. Please try again.');
     }
   };
 
-  // Flawless Native PDF Export via customized print rendering window!
+  // Export a self-contained printable document; this does not depend on a CDN.
   const handleDownloadPDF = () => {
-    const printContent = document.getElementById('resume-preview-node').innerHTML;
-    const printWindow = window.open('', '_blank', 'width=800,height=1000');
-    
+    const preview = document.getElementById('resume-preview-node');
+    if (!preview) return;
+    const printClone = preview.cloneNode(true);
+    const originalNodes = [preview, ...preview.querySelectorAll('*')];
+    const clonedNodes = [printClone, ...printClone.querySelectorAll('*')];
+    originalNodes.forEach((node, index) => {
+      const computed = window.getComputedStyle(node);
+      const inlineStyles = Array.from(computed).map((property) => `${property}:${computed.getPropertyValue(property)}`).join(';');
+      clonedNodes[index].style.cssText = inlineStyles;
+    });
+    const printWindow = window.open('', '_blank', 'width=900,height=1100');
+    if (!printWindow) {
+      window.alert('Allow pop-ups for this site to print your resume as a PDF.');
+      return;
+    }
+    const safeTitle = `${personalInfo.fullName || 'Resume'} - Resume`.replace(/[<>]/g, '');
     printWindow.document.write(`
-      <html>
-        <head>
-          <title>${personalInfo.fullName || 'Jane_Doe'}_Resume</title>
-          <script src="https://cdn.tailwindcss.com"></script>
-          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-          <style>
-            body {
-              font-family: 'Inter', sans-serif;
-              color: #1a202c;
-              background-color: white;
-            }
-            .academic-font {
-              font-family: 'Playfair Display', serif;
-            }
-            .outfit-font {
-              font-family: 'Outfit', sans-serif;
-            }
-            @media print {
-              body { margin: 0; padding: 20px; }
-              @page { size: letter; margin: 0; }
-            }
-          </style>
-        </head>
-        <body onload="window.print(); window.close();">
-          <div class="max-w-[800px] mx-auto p-8 bg-white">
-            ${printContent}
-          </div>
-        </body>
+      <!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title>
+      <style>
+        *{box-sizing:border-box}body{margin:0;padding:28px;color:#111827;background:#fff;font:11pt Arial,Helvetica,sans-serif;line-height:1.45}
+        .resume-print{max-width:8.5in;margin:0 auto}.resume-preview{max-width:none!important;min-height:0!important;padding:0!important;border-radius:0!important;box-shadow:none!important}.ats-resume{max-width:none;min-height:0!important;padding:0;background:#fff;color:#111827;box-shadow:none;font:10.5pt Arial,Helvetica,sans-serif;line-height:1.38}
+        .ats-resume h1{font-size:23pt;margin:0 0 3px}.ats-resume-title{font-size:12pt;font-weight:bold;margin:0 0 5px}.ats-resume-contact{font-size:9.5pt;margin:0;overflow-wrap:anywhere}
+        .ats-resume p{margin:3px 0 0}.ats-resume-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}.ats-resume-row span{overflow-wrap:anywhere;text-align:right}
+        @page{size:letter;margin:.55in}@media print{body{padding:0}.resume-print{max-width:none}}
+      </style></head><body><main class="resume-print">${printClone.outerHTML}</main></body>
       </html>
     `);
-    
     printWindow.document.close();
+    printWindow.onload = () => { printWindow.focus(); printWindow.print(); };
   };
 
   // Header/Button accents color based on global active theme
   const getThemeAccentClass = () => {
-    return theme === 'forest' ? 'bg-[#3d685a] hover:bg-[#1e3f35]' : 'bg-[#2563eb] hover:bg-[#1d4ed8]';
+    return 'bg-[#6C63FF] hover:bg-[#554DE0]';
   };
   const getThemeTextClass = () => {
-    return theme === 'forest' ? 'text-emerald-400' : 'text-blue-400';
+    return 'text-[#6C63FF]';
   };
 
   return (
-    <div className="space-y-6 animate-float-in">
+    <div className="workspace-page space-y-6 animate-float-in">
       
       {/* Resume Builder Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-white font-sans flex items-center gap-2">
-            <span>📄</span> Custom Resume Builder
+          <p className="page-eyebrow">Career studio / profile and experience</p>
+          <h1 className="page-title">
+            <span className="page-title-icon" aria-hidden="true">📄</span> Resume builder
           </h1>
+          <p className="page-description">Build your story section by section and keep a live preview beside your edits.</p>
           <input
             type="text"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
-            className="bg-transparent border-b border-white/10 hover:border-emerald-400 focus:outline-none py-1 mt-1 transition-colors font-medium text-sm text-gray-400 w-full sm:w-[320px]"
+            className="page-project-name bg-transparent border-b border-white/10 hover:border-emerald-400 focus:outline-none py-1 transition-colors font-medium text-sm text-gray-300"
             placeholder="Name your CV"
           />
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="page-header-actions">
           <button 
             onClick={handleSaveProject}
             className={`px-4 py-2 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md ${getThemeAccentClass()}`}
@@ -531,8 +525,10 @@ export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
         </div>
       </div>
 
+      {saveError && <div className="photo-feedback" role="alert">{saveError}</div>}
+
       {/* MOBILE SWITCHER HEADER: Only visible on smaller screens (< lg) */}
-      <div className="lg:hidden flex items-center bg-white/5 border border-white/10 rounded-2xl p-1">
+      <div className="2xl:hidden flex items-center bg-white/5 border border-white/10 rounded-2xl p-1">
         <button
           onClick={() => setMobileMode('edit')}
           className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
@@ -559,12 +555,12 @@ export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
       </div>
 
       {/* Editor & Preview Split Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 2xl:grid-cols-12 gap-6 xl:gap-8 items-start">
         
         {/* LEFT COLUMN: Input Panels (Tabs based) */}
-        <div className={`lg:col-span-5 space-y-6 ${mobileMode === 'preview' ? 'hidden lg:block' : 'block'}`}>
+        <div className={`2xl:col-span-5 space-y-6 ${mobileMode === 'preview' ? 'hidden 2xl:block' : 'block'}`}>
           {/* Tab Selection */}
-          <div className="glass-card rounded-[24px] p-2.5 grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+          <div className="resume-section-nav glass-card rounded-[24px] p-3 grid grid-cols-2 sm:grid-cols-3 gap-2" aria-label="Resume sections">
             {[
               { id: 'personal', label: 'Personal', icon: User },
               { id: 'experience', label: 'Work', icon: Briefcase },
@@ -584,14 +580,15 @@ export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-2 px-1 rounded-xl text-[9px] sm:text-[10px] font-bold transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                  aria-pressed={activeTab === tab.id}
+                  className={`min-h-12 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-start gap-2.5 cursor-pointer text-left ${
                     activeTab === tab.id
                       ? 'bg-[#3d685a] text-white shadow'
                       : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <Icon size={12} />
-                  <span className="truncate max-w-full">{tab.label}</span>
+                  <Icon size={16} className="shrink-0" />
+                  <span className="truncate">{tab.label}</span>
                 </button>
               );
             })}
@@ -1470,10 +1467,11 @@ export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
         </div>
 
         {/* RIGHT COLUMN: Split Live Preview (Updates in real time) */}
-        <div className={`lg:col-span-7 space-y-6 ${mobileMode === 'edit' ? 'hidden lg:block' : 'block'}`}>
+        <div className={`2xl:col-span-7 space-y-6 ${mobileMode === 'edit' ? 'hidden 2xl:block' : 'block'}`}>
           {/* Template Selection Tab Header */}
           <div className="glass-card rounded-[24px] p-2 flex gap-2">
             {[
+              { id: 'ats', label: 'ATS friendly' },
               { id: 'modern', label: 'Modern Tech' },
               { id: 'academic', label: 'Academic Serif' },
               { id: 'minimalist', label: 'Minimalist' }
@@ -1492,6 +1490,12 @@ export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
             ))}
           </div>
 
+          {templateId !== 'ats' && (
+            <p className="ats-guidance" role="note">
+              This visual layout uses additional styling. Choose <strong>ATS friendly</strong> before submitting your resume to applicant tracking systems.
+            </p>
+          )}
+
           {/* White Resume Preview Box (Perfect A4 styling inside MERN) */}
           <div className="w-full bg-slate-950/40 rounded-[32px] p-1 border border-white/5 shadow-2xl relative overflow-hidden">
             <div className="absolute top-4 right-4 text-[10px] px-2 py-0.5 bg-white/5 border border-white/10 text-gray-400 rounded-md font-bold uppercase tracking-wider z-20">
@@ -1499,11 +1503,26 @@ export const ResumeBuilder = ({ projectToLoad, clearLoadedProject }) => {
             </div>
 
             {/* A4 template container scroll-wrapper */}
-            <div className="w-full overflow-x-auto p-2 sm:p-4">
+            <div className="w-full p-2 sm:p-4">
               <div 
-                id="resume-preview-node" 
-                className="w-full min-w-[580px] bg-white text-slate-800 p-8 shadow-inner rounded-2xl relative text-left"
+                id="resume-preview-node"
+                className="resume-preview w-full max-w-[816px] min-h-[1056px] mx-auto bg-white text-slate-800 p-8 shadow-inner rounded-2xl relative text-left"
               >
+                {templateId === 'ats' && (
+                  <ATSResume
+                    personalInfo={personalInfo}
+                    experience={experience}
+                    education={education}
+                    skills={skills}
+                    projects={projects}
+                    certifications={certifications}
+                    languages={languages}
+                    volunteerWork={volunteerWork}
+                    awards={awards}
+                    publications={publications}
+                    references={references}
+                  />
+                )}
                 
                 {/* TEMPLATE A: MODERN TECH */}
                 {templateId === 'modern' && (
