@@ -13,7 +13,7 @@ export function getApiBase() {
       return 'http://localhost:5000';
     }
 
-    // Netlify proxies /api and /uploads to Render in production.
+    // Vercel rewrites /api and /uploads to the Render backend in production.
     if (window.location.origin) {
       return window.location.origin;
     }

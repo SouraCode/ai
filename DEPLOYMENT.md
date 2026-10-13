@@ -1,8 +1,9 @@
 # Deployment
 
-The frontend and API deploy separately. The browser uses Netlify's same-origin
-proxy for `/api/*` and `/uploads/*`, so API calls and photo URLs do not need
-browser CORS configuration.
+The frontend deploys to Vercel and the API deploys to Render. `vercel.json`
+builds the Vite app from `client` and proxies `/api/*` and `/uploads/*` to the
+Render service on the same origin. This avoids browser CORS and mixed-content
+issues.
 
 ## Render API
 
@@ -13,19 +14,24 @@ browser CORS configuration.
    if AI-backed slide generation is needed; the presentation module has a local
    generation fallback when the key is absent.
 4. Wait for `GET /health` to return `{"status":"ok"}` before deploying the UI.
+   Account login and registration require a successful MongoDB connection; set
+   `MONGODB_URI` before testing those endpoints.
 
 The blueprint names the service `ai-multi-tool-app`; its default public URL is
 `https://ai-multi-tool-app.onrender.com`. If Render assigns a different URL,
-update both Render proxy targets in `netlify.toml` to that URL and redeploy the
-Netlify site.
+update both Render destinations in `vercel.json` and redeploy the Vercel project.
 
-## Netlify frontend
+## Vercel frontend
 
-1. Connect the same repository to Netlify. `netlify.toml` sets `client` as the
-   base directory, runs the Vite production build, and publishes `client/dist`.
-2. Keep the `netlify.toml` redirects in the deployed branch. They proxy API and
-   upload requests to Render and route client-side navigation back to the app.
-3. Redeploy after changing the proxy target or frontend build configuration.
+1. Import the repository into Vercel with the repository root as the project
+   root. `vercel.json` installs the client dependencies, builds the app, and
+   publishes `client/dist`.
+2. Keep `vercel.json` in the deployed branch. It proxies API and upload
+   requests to Render and routes client-side navigation back to the app.
+3. No `VITE_API_URL` environment variable is required for this setup. If you
+   set one, it must be the Render service origin (for example,
+   `https://ai-multi-tool-app.onrender.com`) with no `/api` suffix.
+4. Redeploy after changing the Render URL or Vercel build configuration.
 
 The production build needs Node.js 20.19 or newer (or Node.js 22.12 or newer).
 MongoDB is required for accounts and project data. Render's local upload folder

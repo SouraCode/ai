@@ -3,6 +3,17 @@ import { API_URL } from '../config/api';
 
 const AuthContext = createContext(null);
 
+const readApiResponse = async (response, action) => {
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.message || `${action} failed (HTTP ${response.status}). Check that the Vercel API rewrite and Render service are available.`);
+  if (!data) throw new Error(`${action} returned an invalid response. Check the Vercel API rewrite and Render service.`);
+  return data || {};
+};
+
+const userFacingApiError = (error) => error instanceof TypeError
+  ? `Could not reach the account service at ${API_URL}. Check the Vercel API rewrite and Render deployment.`
+  : error.message;
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token') || null);
@@ -27,7 +38,7 @@ export const AuthProvider = ({ children }) => {
         });
         
         if (response.ok) {
-          const data = await response.json();
+          const data = await readApiResponse(response, 'Session check');
           setUser(data);
         } else {
           // Token expired or invalid
@@ -69,7 +80,7 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email: cleanEmail, password })
       });
       
-      const data = await response.json();
+      const data = await readApiResponse(response, 'Login');
       
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
@@ -82,9 +93,9 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(false);
       return true;
     } catch (err) {
-      setError(err.message);
+      setError(userFacingApiError(err));
       setIsLoading(false);
-      throw err; // Propagate the real error to the login screen!
+      throw new Error(userFacingApiError(err));
     }
   };
 
@@ -102,7 +113,7 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ username: cleanUsername, email: cleanEmail, password })
       });
       
-      const data = await response.json();
+      const data = await readApiResponse(response, 'Registration');
       
       if (!response.ok) {
         throw new Error(data.message || 'Registration failed');
@@ -115,9 +126,9 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(false);
       return true;
     } catch (err) {
-      setError(err.message);
+      setError(userFacingApiError(err));
       setIsLoading(false);
-      throw err; // Propagate the real error to the signup screen!
+      throw new Error(userFacingApiError(err));
     }
   };
 
@@ -144,7 +155,7 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ username: cleanUsername, email: cleanEmail, password })
       });
       
-      const data = await response.json();
+      const data = await readApiResponse(response, 'Profile update');
       
       if (!response.ok) {
         throw new Error(data.message || 'Profile update failed');

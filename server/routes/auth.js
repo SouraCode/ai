@@ -1,5 +1,6 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import { UserStore } from '../models/User.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
@@ -22,6 +23,9 @@ router.post('/register', async (req, res) => {
   
   if (!username || !email || !password) {
     return res.status(400).json({ message: 'All fields are required' });
+  }
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({ message: 'Account service is not ready because the database is disconnected. Check MONGODB_URI in Render.' });
   }
   
   try {
@@ -55,6 +59,9 @@ router.post('/login', async (req, res) => {
   
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required' });
+  }
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({ message: 'Account service is not ready because the database is disconnected. Check MONGODB_URI in Render.' });
   }
   
   try {
