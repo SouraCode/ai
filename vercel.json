@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "installCommand": "npm ci --prefix client",
-  "buildCommand": "npm run build --prefix client",
+  "installCommand": "cd client && npm ci",
+  "buildCommand": "cd client && npm run build",
   "outputDirectory": "client/dist",
   "framework": "vite",
   "rewrites": [
